@@ -1,2 +1,0 @@
-url,ref,repo_id,ok,error,repo_age_days,commit_count,contributor_count,top_contributor_share,bus_factor_50p,bus_factor_75p,has_SECURITY_md,has_CODEOWNERS,has__github_dependabot_yml,has__github_workflows
-https://github.com/psf/requests,,,True,,5499,6411,810,0.333957,3,25,False,True,True,True
