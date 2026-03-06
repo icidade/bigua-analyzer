@@ -19,7 +19,7 @@ def _build_parser() -> argparse.ArgumentParser:
     g.add_argument("repo", nargs="?", help="Repository URL to analyze (single mode). Example: https://github.com/org/repo")
     g.add_argument("--dataset", type=str, help="Path to a dataset (.csv or .jsonl) containing repository URLs.")
     p.add_argument("--ref", type=str, default=None, help="Branch/tag/SHA to analyze (single mode only).")
-    p.add_argument("--cache-dir", type=str, default=".cache/bigua", help="Local cache directory for git clones.")
+    p.add_argument("--cache-dir", type=str, default=str(Path.home() / ".bigua" / "cache"), help="Local cache directory for git clones.")
     p.add_argument("--out", type=str, default="out/results", help="Output path prefix (without extension).")
     p.add_argument("--format", choices=["jsonl", "csv", "both"], default="both", help="Output format.")
     p.add_argument("--max-repos", type=int, default=None, help="Limit number of repos from dataset (useful for testing).")
