@@ -1,5 +1,8 @@
 # bigua-analyzer
 
+
+[![Release](https://img.shields.io/github/v/release/icidade/bigua-analyzer)](https://github.com/icidade/bigua-analyzer/releases)
+
 > Observe the surface. Dive for the signal.
 
 A research tool that analyzes public GitHub repositories to extract engineering and security-relevant development metrics.
