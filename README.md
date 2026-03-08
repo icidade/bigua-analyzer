@@ -2,6 +2,8 @@
 
 
 [![Release](https://img.shields.io/github/v/release/icidade/bigua-analyzer)](https://github.com/icidade/bigua-analyzer/releases)
+[![License](https://img.shields.io/github/license/icidade/bigua-analyzer)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)]()
 
 > Observe the surface. Dive for the signal.
 
