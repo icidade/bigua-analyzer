@@ -10,7 +10,7 @@ from typing import List
 
 from .core import analyze_repo
 from .io_utils import read_dataset, write_csv, write_jsonl
-from .types import RepoResult, RepoSpec
+from .models import RepoResult, RepoSpec
 
 
 def _build_parser() -> argparse.ArgumentParser:

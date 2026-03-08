@@ -68,20 +68,40 @@ Higher values may indicate loss of active maintainers or declining project conti
 
 ### Release Cadence Stability
 
-Measures the regularity of project releases.
+Measures how regularly a project produces releases.
 
-Method:
+Two complementary metrics are used:
 
-Average number of days between Git tags.
+Historical cadence
 
-Purpose:
+- `release_cadence_days`
 
-Detect projects where release discipline has slowed or become irregular.
+Definition:  
+Average number of days between all Git tags across the entire repository history.
 
-Interpretation:
+Purpose:  
+Provide a long-term view of the project’s release discipline.
 
-Very large gaps between releases may indicate project stagnation.
+Interpretation:  
+Higher values may indicate slower or irregular release cycles.
 
+
+Recent cadence
+
+- `recent_release_cadence_days`
+
+Definition:  
+Average number of days between Git tags created within the last 365 days.
+
+Purpose:  
+Capture the **current release rhythm**, which may differ from the historical average.
+
+Interpretation:  
+A significant difference between historical and recent cadence may indicate:
+
+- slowing development activity  
+- reduced maintainer availability  
+- project transition or decline
 
 ---
 

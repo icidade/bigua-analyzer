@@ -6,7 +6,7 @@ import typing
 
 import pandas as pd
 
-from .types import RepoResult, RepoSpec
+from .models import RepoResult, RepoSpec
 
 
 def sstrip(v: typing.Any) -> typing.Optional[str]:

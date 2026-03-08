@@ -33,25 +33,49 @@ def stable_repo_dir(cache_dir: Path, repo_url: str) -> Path:
 def ensure_cloned(repo_url: str, cache_dir: Path) -> Path:
     """
     Clone repo to a stable cache path (based on URL hash).
+    Uses bare repository to avoid working tree issues.
     If already cloned, fetch updates.
     """
     cache_dir.mkdir(parents=True, exist_ok=True)
     repo_dir = stable_repo_dir(cache_dir, repo_url)
 
     if not repo_dir.exists():
-        _run(["git", "clone", "--no-tags", "--filter=blob:none", repo_url, str(repo_dir)])
+        _run(["git", "-c", "core.longpaths=true", "clone", "--bare", "--filter=blob:none", repo_url, str(repo_dir)])
+        _run(["git", "fetch", "--tags"], cwd=repo_dir)
     else:
         # Update existing clone
         _run(["git", "fetch", "--all", "--prune"], cwd=repo_dir)
+        _run(["git", "fetch", "--tags"], cwd=repo_dir)
 
     return repo_dir
 
 
+def get_ref_for_commands(repo_dir: Path, ref: Optional[str]) -> str:
+    """
+    Returns the ref to use in git commands.
+    If ref is None, tries to find a default branch.
+    """
+    if ref:
+        return ref
+    
+    # Try common default branch names
+    for branch in ["main", "master", "develop"]:
+        try:
+            git_stdout(repo_dir, ["rev-parse", "--verify", f"refs/heads/{branch}"])
+            return branch
+        except GitError:
+            continue
+    
+    # Fallback to HEAD
+    return "HEAD"
+
+
 def checkout_ref(repo_dir: Path, ref: Optional[str]) -> None:
-    if not ref:
-        return
-    # Try to checkout ref (branch/tag/sha)
-    _run(["git", "checkout", "--force", ref], cwd=repo_dir)
+    """
+    For bare repositories, we don't checkout.
+    This function is kept for compatibility but does nothing.
+    """
+    pass
 
 
 def git_stdout(repo_dir: Path, args: list[str]) -> str:
