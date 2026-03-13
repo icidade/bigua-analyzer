@@ -118,6 +118,43 @@ They help normalize and interpret ecosystem signals.
 
 ---
 
+### Developer Turnover
+
+Measures the proportion of contributors who have become inactive.
+
+Definition:
+Proportion of unique contributors who have not committed in the last 365 days.
+
+Calculation:
+inactive_contributors / total_unique_contributors
+
+Where inactive_contributors are those whose last commit is more than 365 days ago.
+
+Purpose:
+Quantify contributor churn or loss of engagement.
+
+Interpretation:
+Higher values may indicate declining community or project stagnation.
+
+
+---
+
+### Gini Coefficient
+
+Measures inequality in commit distribution among contributors.
+
+Definition:
+Gini coefficient calculated on the share of commits per contributor.
+
+Purpose:
+Quantify how unevenly commits are distributed (complements Bus Factor).
+
+Interpretation:
+Values closer to 1 indicate high inequality (few contributors dominate), closer to 0 indicate equality.
+
+
+---
+
 ## Experimental Metrics
 
 ### Security Incident Distance

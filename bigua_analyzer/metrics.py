@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .gitops import git_stdout
 
@@ -427,6 +427,72 @@ def recent_release_cadence_days(repo_dir: Path, window_days: int = 365) -> float
 
     return statistics.mean(gaps) if gaps else None
 
+def gini_coefficient(repo_dir: Path, ref: str = "HEAD") -> float | None:
+    """
+    Gini coefficient for commit distribution among contributors.
+    Measures inequality: 0 = perfect equality, 1 = perfect inequality.
+    """
+    entries = _shortlog_entries(repo_dir, ref)
+    if not entries:
+        return None
+
+    commits = [count for count, _ in entries]
+    if len(commits) < 2:
+        return 0.0
+
+    commits.sort()
+    n = len(commits)
+    total = sum(commits)
+    if total == 0:
+        return 0.0
+
+    cumulative = 0
+    for i, x in enumerate(commits):
+        cumulative += x * (i + 1)
+
+    mean = total / n
+    gini = (2 * cumulative) / (n * total) - (n + 1) / n
+    return max(0.0, min(1.0, gini))
+
+
+def developer_turnover(repo_dir: Path, inactive_days: int = 365, ref: str = "HEAD") -> float | None:
+    """
+    Proportion of contributors inactive for more than `inactive_days`.
+    Turnover proxy: inactive_contributors / total_contributors
+    """
+    total_contributors = contributor_count(repo_dir, ref)
+    if total_contributors == 0:
+        return None
+
+    head_ts_raw = git_stdout(repo_dir, ["show", "-s", "--format=%ct", ref]).strip()
+    if not head_ts_raw:
+        return None
+
+    now_ts = int(head_ts_raw)
+    threshold_ts = now_ts - (inactive_days * 86400)
+
+    # Get all unique authors and their last commit ts
+    out = git_stdout(repo_dir, ["log", "--format=%aN <%aE>", ref]).strip()
+    if not out:
+        return 0.0
+
+    authors = set(line.strip() for line in out.splitlines() if line.strip())
+    inactive_count = 0
+
+    for author_field in authors:
+        email = _extract_email(author_field)
+        if email:
+            ts_out = git_stdout(repo_dir, ["log", "-1", "--format=%ct", f"--author={email}"]).strip()
+        else:
+            ts_out = git_stdout(repo_dir, ["log", "-1", "--format=%ct", f"--author={author_field}"]).strip()
+
+        if ts_out:
+            last_ts = int(ts_out)
+            if last_ts < threshold_ts:
+                inactive_count += 1
+
+    return inactive_count / total_contributors
+
 def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None) -> Dict[str, Any]:
     from .gitops import get_ref_for_commands
     ref_str = get_ref_for_commands(repo_dir, ref)
@@ -449,6 +515,8 @@ def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None) -> Dict[str, 
         "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
         "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
         "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
+        "gini_coefficient": gini_coefficient(repo_dir, ref_str),
+        "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
     }
     metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
     return metrics
