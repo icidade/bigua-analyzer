@@ -222,27 +222,35 @@ def bus_factor_set_median_inactivity_days(repo_dir: Path, threshold: float = 0.5
         return None
 
     now_ts = int(head_ts_raw)
-    inactivity_days: list[int] = []
 
-    for author_field in selected_authors:
-        email = _extract_email(author_field)
+    # Get all commits with author and timestamp
+    out = git_stdout(repo_dir, ["log", "--format=%aN <%aE> %ct", ref]).strip()
+    if not out:
+        return None
 
-        if email:
-            ts = git_stdout(
-                repo_dir,
-                ["log", "-1", "--format=%ct", f"--author={email}"]
-            ).strip()
-        else:
-            ts = git_stdout(
-                repo_dir,
-                ["log", "-1", "--format=%ct", f"--author={author_field}"]
-            ).strip()
-
-        if not ts:
+    # Build dict of author_field -> max ts
+    author_last_commit: dict[str, int] = {}
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Format: "Name <email> ts"
+        parts = line.rsplit(' ', 1)
+        if len(parts) != 2:
+            continue
+        author_field = parts[0]
+        try:
+            ts = int(parts[1])
+            if author_field not in author_last_commit or ts > author_last_commit[author_field]:
+                author_last_commit[author_field] = ts
+        except ValueError:
             continue
 
-        last_ts = int(ts)
-        inactivity_days.append(max(0, (now_ts - last_ts) // 86400))
+    inactivity_days: list[int] = []
+    for author_field in selected_authors:
+        if author_field in author_last_commit:
+            last_ts = author_last_commit[author_field]
+            inactivity_days.append(max(0, (now_ts - last_ts) // 86400))
 
     if not inactivity_days:
         return None
@@ -347,29 +355,34 @@ def recent_bus_factor_set_median_inactivity_days(
         return None
 
     now_ts = int(head_ts_raw)
-    inactivity_days = []
 
-    for author_field in selected_authors:
-        email = None
-        if "<" in author_field and ">" in author_field:
-            email = author_field.split("<")[-1].split(">")[0].strip()
+    # Get all commits with author and timestamp (no since filter for last commit)
+    out = git_stdout(repo_dir, ["log", "--format=%aN <%aE> %ct", ref]).strip()
+    if not out:
+        return None
 
-        if email:
-            ts = git_stdout(
-                repo_dir,
-                ["log", "-1", "--format=%ct", f"--author={email}"]
-            ).strip()
-        else:
-            ts = git_stdout(
-                repo_dir,
-                ["log", "-1", "--format=%ct", f"--author={author_field}"]
-            ).strip()
-
-        if not ts:
+    # Build dict of author_field -> max ts
+    author_last_commit: dict[str, int] = {}
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.rsplit(' ', 1)
+        if len(parts) != 2:
+            continue
+        author_field = parts[0]
+        try:
+            ts = int(parts[1])
+            if author_field not in author_last_commit or ts > author_last_commit[author_field]:
+                author_last_commit[author_field] = ts
+        except ValueError:
             continue
 
-        last_ts = int(ts)
-        inactivity_days.append(max(0, (now_ts - last_ts) // 86400))
+    inactivity_days = []
+    for author_field in selected_authors:
+        if author_field in author_last_commit:
+            last_ts = author_last_commit[author_field]
+            inactivity_days.append(max(0, (now_ts - last_ts) // 86400))
 
     if not inactivity_days:
         return None
@@ -471,25 +484,30 @@ def developer_turnover(repo_dir: Path, inactive_days: int = 365, ref: str = "HEA
     now_ts = int(head_ts_raw)
     threshold_ts = now_ts - (inactive_days * 86400)
 
-    # Get all unique authors and their last commit ts
-    out = git_stdout(repo_dir, ["log", "--format=%aN <%aE>", ref]).strip()
+    # Get all commits with author email and timestamp in one go
+    out = git_stdout(repo_dir, ["log", "--format=%aE %ct", ref]).strip()
     if not out:
         return 0.0
 
-    authors = set(line.strip() for line in out.splitlines() if line.strip())
-    inactive_count = 0
+    # Build a dict of email -> max timestamp
+    author_last_commit: dict[str, int] = {}
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        try:
+            email = parts[0]
+            ts = int(parts[1])
+            if email not in author_last_commit or ts > author_last_commit[email]:
+                author_last_commit[email] = ts
+        except ValueError:
+            continue
 
-    for author_field in authors:
-        email = _extract_email(author_field)
-        if email:
-            ts_out = git_stdout(repo_dir, ["log", "-1", "--format=%ct", f"--author={email}"]).strip()
-        else:
-            ts_out = git_stdout(repo_dir, ["log", "-1", "--format=%ct", f"--author={author_field}"]).strip()
-
-        if ts_out:
-            last_ts = int(ts_out)
-            if last_ts < threshold_ts:
-                inactive_count += 1
+    # Count inactive contributors
+    inactive_count = sum(1 for last_ts in author_last_commit.values() if last_ts < threshold_ts)
 
     return inactive_count / total_contributors
 
