@@ -60,6 +60,11 @@ def main() -> None:
         results = _run_single(args)
 
     out_prefix = Path(args.out)
+
+    # If the user supplies just a basename (no directory), default to the `out/` folder
+    if out_prefix.parent in (Path("."), Path("")):
+        out_prefix = Path("out") / out_prefix
+
     if args.format in ("jsonl", "both"):
         write_jsonl(results, out_prefix.with_suffix(".jsonl"))
     if args.format in ("csv", "both"):
