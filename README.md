@@ -135,6 +135,8 @@ Results are saved as CSV and/or JSONL files. Each row/object contains:
 - Success status and error messages (if any)
 - All calculated metrics
 
+> **Note:** If `--out` is provided as a bare filename (no directory), output is written under `out/` by default (e.g., `--out results` → `out/results.csv`). If you specify a path (e.g., `--out data/results`), that path is used as given.
+
 See `bigua_project_docs/metrics.md` for detailed metric definitions.
 
 ### Dataset Format
