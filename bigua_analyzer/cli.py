@@ -5,6 +5,7 @@ os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
@@ -23,6 +24,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", type=str, default="out/results", help="Output path prefix (without extension).")
     p.add_argument("--format", choices=["jsonl", "csv", "both"], default="both", help="Output format.")
     p.add_argument("--max-repos", type=int, default=None, help="Limit number of repos from dataset (useful for testing).")
+    p.add_argument("--max-workers", type=int, default=4, help="Maximum number of parallel threads for dataset processing.")
     return p
 
 
@@ -38,8 +40,13 @@ def _run_dataset(args) -> List[RepoResult]:
         repos = repos[: max(0, args.max_repos)]
 
     results: List[RepoResult] = []
-    for repo in repos:
-        results.append(analyze_repo(repo, cache_dir=Path(args.cache_dir)))
+    cache_dir = Path(args.cache_dir)
+
+    with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        futures = {executor.submit(analyze_repo, repo, cache_dir): repo for repo in repos}
+        for future in as_completed(futures):
+            results.append(future.result())
+
     return results
 
 
