@@ -27,6 +27,10 @@ Interpretation discipline:
 - High developer turnover may indicate instability OR a healthy inflow of occasional contributors.
 - Low activity may indicate abandonment OR project maturity.
 - High churn may indicate instability OR active refactoring.
+- When interpreting developer_turnover,
+  consider whether the project is a high-adoption OSS project
+  where many contributors may submit occasional contributions.
+- Always distinguish between core maintainers and occasional contributors when interpreting turnover metrics.
 
 Additional interpretation rules:
 
@@ -45,32 +49,24 @@ Generate the report using this exact structure:
 
 ## Metric Signals
 
-Group important metrics into categories:
+This section is required. Always include it.
 
-High signals:
-metrics that indicate strong patterns
+Use this exact subsection format:
 
-Moderate signals:
-metrics that may indicate patterns but require interpretation
+High:
+- metric_name
 
-Low signals:
-metrics that do not show significant signals
+Moderate:
+- metric_name
 
-Example structure:
+Low:
+- metric_name
 
-## Metric Signals
-
-High signals:
-- gini_coefficient
-- developer_turnover
-
-Moderate signals:
-- commit_volatility
-
-Low signals:
-- inactivity_recent
-
-The model should determine the grouping based on metric values.
+Rules:
+- Use raw metric keys (for example: gini_coefficient, developer_turnover, commit_volatility).
+- Put each metric in only one group.
+- If a group has no strong candidates, keep the label and use a short placeholder line: - (none).
+- The model should determine grouping based on metric values.
 
 ## Key Observations
 
@@ -89,28 +85,26 @@ Link analytical conclusions with the metrics that support them.
 
 The section must map insights to the metrics used to infer them.
 
+This section is required. Always include it.
+
 Example format:
 
 ## Evidence Map
 
-Contributor concentration
+Contribution concentration
 evidence:
-- gini_coefficient: 0.89
-- bus_factor: 2
+- gini_coefficient: 0.83
+- top contributor share: 33%
 
 Contributor instability
 evidence:
-- developer_turnover: 0.88
-- historical inactivity: 1130 days
-
-Release cadence
-evidence:
-- release_frequency: every ~18 days
-- commit_frequency: 3.8/day
+- developer_turnover: 0.95
+- median inactivity: 3019 days
 
 Rules for the model:
 - Every major interpretation must cite the metrics that support it.
 - Do not introduce evidence not present in the metrics input.
+- Keep each evidence item as a short key-value bullet (metric_name: value).
 
 ## Final Assessment
 
