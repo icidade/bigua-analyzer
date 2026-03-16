@@ -134,22 +134,30 @@ def _add_analyze_report_parser(subparsers) -> None:
         help="Output path for the HTML report. Pass empty string to skip HTML rendering.",
     )
     p.add_argument(
+        "--llm",
+        "--provider",
+        dest="llm",
+        choices=["openai-compatible", "openai", "xai", "gemini", "ollama"],
+        default="openai-compatible",
+        help="LLM adapter (default: openai-compatible). Supported: openai-compatible, openai, xai, gemini, ollama.",
+    )
+    p.add_argument(
         "--model",
         type=str,
         default=None,
-        help="LLM model name (overrides OPENAI_MODEL env var).",
+        help="LLM model name (falls back to LLM_MODEL, then provider-specific vars).",
     )
     p.add_argument(
         "--base-url",
         type=str,
         default=None,
-        help="OpenAI-compatible API base URL (overrides OPENAI_BASE_URL env var).",
+        help="Provider API base URL override (falls back to LLM_BASE_URL, then provider-specific vars).",
     )
     p.add_argument(
         "--api-key",
         type=str,
         default=None,
-        help="API key (overrides OPENAI_API_KEY env var).",
+        help="API key override (falls back to LLM_API_KEY, then provider-specific vars).",
     )
     p.add_argument(
         "--temperature",
@@ -210,6 +218,7 @@ def _cmd_analyze_report(args) -> None:
             repo_url=args.repo_url,
             out_md=Path(args.out_md),
             out_html=out_html,
+            provider=args.llm,
             model=args.model,
             base_url=args.base_url,
             api_key=args.api_key,
@@ -227,6 +236,7 @@ def _cmd_analyze_report(args) -> None:
         csv_path=Path(args.csv),
         out_dir=Path(args.out_dir),
         render_html_output=bool(args.out_html),
+        provider=args.llm,
         model=args.model,
         base_url=args.base_url,
         api_key=args.api_key,

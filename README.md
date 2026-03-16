@@ -176,7 +176,7 @@ Derived signals are computed automatically before the prompt is sent:
 
 ```bash
 # 1. Set your API key
-export OPENAI_API_KEY=sk-...
+export LLM_API_KEY=sk-...
 
 # 2. Run the analyzer
 bigua-analyzer analyze https://github.com/org/repo --out out/results
@@ -201,9 +201,10 @@ If `--repo-url` is omitted and the CSV contains multiple rows, `analyze-report` 
 | `--out-dir` | `analysis_reports` | Output directory for batch mode |
 | `--out-md` | `analysis_report.md` | Markdown output path |
 | `--out-html` | `analysis_report.html` | HTML output path (pass `""` to skip) |
-| `--model` | `gpt-4o` | LLM model name |
-| `--base-url` | OpenAI | OpenAI-compatible API base URL |
-| `--api-key` | env | API key (overrides `OPENAI_API_KEY`) |
+| `--llm` | `openai-compatible` | LLM adapter: `openai-compatible`, `openai`, `xai`, `gemini`, `ollama` (`--provider` is an alias) |
+| `--model` | provider-specific | LLM model name |
+| `--base-url` | provider-specific | API base URL override |
+| `--api-key` | provider-specific | API key override |
 | `--temperature` | `0.2` | Sampling temperature |
 | `--top-p` | `0.9` | Nucleus sampling probability mass |
 | `--max-tokens` | `4096` | Max tokens in LLM response |
@@ -217,16 +218,44 @@ The LLM call uses a **system/user split** for better output consistency:
 
 Defaults are tuned for factual, analytical output: `temperature=0.2`, `top_p=0.9`.
 
-Environment variables `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are respected automatically.
+Provider-specific environment variables are respected automatically:
+
+- Generic (all providers): `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`
+- `openai` / `openai-compatible`: `OPENAI_BASE_URL`, `OPENAI_MODEL` (legacy `OPENAI_API_KEY` also supported)
+- `xai`: `XAI_API_KEY`, `XAI_BASE_URL`, `XAI_MODEL`
+- `gemini`: `GEMINI_API_KEY`, `GEMINI_BASE_URL`, `GEMINI_MODEL`
+- `ollama`: `OLLAMA_BASE_URL`, `OLLAMA_MODEL` (no API key required by default)
 
 #### Using a self-hosted or alternative LLM
 
 ```bash
+# Ollama native API
 bigua-analyzer analyze-report \
     --csv out/results.csv \
+    --llm ollama \
+    --base-url http://localhost:11434 \
+    --model llama3.1 \
+    --yes
+
+# OpenAI-compatible endpoint
+bigua-analyzer analyze-report \
+    --csv out/results.csv \
+    --llm openai-compatible \
     --base-url http://localhost:11434/v1 \
     --model llama3 \
     --api-key dummy
+
+# Gemini native API
+bigua-analyzer analyze-report \
+    --csv out/results.csv \
+    --llm gemini \
+    --model gemini-2.0-flash
+
+# xAI (Grok via OpenAI-compatible API)
+bigua-analyzer analyze-report \
+    --csv out/results.csv \
+    --llm xai \
+    --model grok-2-latest
 
 # Non-interactive mode (CI/scripts)
 bigua-analyzer analyze-report \

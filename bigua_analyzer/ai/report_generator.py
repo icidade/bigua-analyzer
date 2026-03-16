@@ -46,6 +46,7 @@ def _repo_slug(row: "pd.Series[Any]") -> str:  # type: ignore[type-arg]
 def _generate_markdown_for_row(
     row: "pd.Series[Any]",  # type: ignore[type-arg]
     *,
+    provider: str,
     model: Optional[str],
     base_url: Optional[str],
     api_key: Optional[str],
@@ -65,6 +66,7 @@ def _generate_markdown_for_row(
 
     return call_llm(
         prompt,
+        provider=provider,
         system_prompt=SYSTEM_PROMPT,
         model=model,
         base_url=base_url,
@@ -94,6 +96,7 @@ def generate_report(
     repo_url: Optional[str] = None,
     out_md: Path = Path("analysis_report.md"),
     out_html: Optional[Path] = Path("analysis_report.html"),
+    provider: str = "openai-compatible",
     model: Optional[str] = None,
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -116,7 +119,7 @@ def generate_report(
     out_html:
         Destination path for the HTML report.  Pass ``None`` to skip HTML
         rendering.
-    model / base_url / api_key / temperature / top_p / max_tokens:
+    provider / model / base_url / api_key / temperature / top_p / max_tokens:
         Forwarded verbatim to :func:`~bigua_analyzer.ai.llm_client.call_llm`.
 
     Returns
@@ -145,6 +148,7 @@ def generate_report(
 
     markdown_report = _generate_markdown_for_row(
         row,
+        provider=provider,
         model=model,
         base_url=base_url,
         api_key=api_key,
@@ -167,6 +171,7 @@ def generate_reports(
     *,
     out_dir: Path = Path("analysis_reports"),
     render_html_output: bool = True,
+    provider: str = "openai-compatible",
     model: Optional[str] = None,
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -186,6 +191,7 @@ def generate_reports(
     for _, row in df.iterrows():
         markdown_report = _generate_markdown_for_row(
             row,
+            provider=provider,
             model=model,
             base_url=base_url,
             api_key=api_key,
