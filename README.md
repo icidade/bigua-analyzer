@@ -159,3 +159,10 @@ https://github.com/org/repo,main,my-repo
 - First run clones repositories (cached for future runs).
 - Use `--max-workers` for parallel processing on multi-core systems.
 - Large repos may take time; start with small datasets for testing.
+
+## Project Policies
+
+- See [CONTRIBUTING.md](c:\Users\Samsung\git\bigua-analyzer\CONTRIBUTING.md) for contribution workflow and pull request guidance.
+- See [CODE_OF_CONDUCT.md](c:\Users\Samsung\git\bigua-analyzer\CODE_OF_CONDUCT.md) for community expectations.
+- See [SECURITY.md](c:\Users\Samsung\git\bigua-analyzer\SECURITY.md) for vulnerability reporting guidance.
+- See [CHANGELOG.md](c:\Users\Samsung\git\bigua-analyzer\CHANGELOG.md) for notable release history.
