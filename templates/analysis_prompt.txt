@@ -1,0 +1,43 @@
+Repository metadata:
+
+Repository: {repo_name}
+URL: {repo_url}
+Analysis date: {analysis_date}
+
+Metrics:
+
+{metrics_block}
+
+Derived signals:
+
+{signals_block}
+
+Interpretation hints:
+
+- Higher gini_coefficient suggests inequality in contribution distribution
+- Lower bus_factor suggests concentration risk
+- Higher developer_turnover may suggest instability in contributor base
+- Higher code_churn may indicate rework or rapid evolution
+- High stars indicate popularity but not necessarily maintainability
+
+Generate the report using this exact structure:
+
+# Repository Analysis Report: {repo_name}
+
+## Executive Summary
+
+## Repository Profile
+
+## Key Observations
+
+## Strengths
+
+## Risks and Concerns
+
+## Contributor Dynamics
+
+## Change and Maintenance Patterns
+
+## Final Assessment
+
+## Suggested Next Steps
