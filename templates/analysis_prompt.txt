@@ -20,13 +20,57 @@ Interpretation hints:
 - Higher code_churn may indicate rework or rapid evolution
 - High stars indicate popularity but not necessarily maintainability
 
+Interpretation discipline:
+
+- Avoid deterministic conclusions.
+- Consider alternative explanations for observed metrics.
+- High developer turnover may indicate instability OR a healthy inflow of occasional contributors.
+- Low activity may indicate abandonment OR project maturity.
+- High churn may indicate instability OR active refactoring.
+
+Additional interpretation rules:
+
+- When interpreting metrics such as developer_turnover, commit volatility, or activity cadence, always mention at least one alternative interpretation.
+- Do not assume that high developer_turnover automatically indicates instability.
+- Consider that OSS projects often have many occasional contributors.
+- Explicitly mention uncertainty when multiple interpretations exist.
+
 Generate the report using this exact structure:
 
-# Repository Analysis Report: {repo_name}
+# Repository Analysis Report
 
 ## Executive Summary
 
 ## Repository Profile
+
+## Metric Signals
+
+Group important metrics into categories:
+
+High signals:
+metrics that indicate strong patterns
+
+Moderate signals:
+metrics that may indicate patterns but require interpretation
+
+Low signals:
+metrics that do not show significant signals
+
+Example structure:
+
+## Metric Signals
+
+High signals:
+- gini_coefficient
+- developer_turnover
+
+Moderate signals:
+- commit_volatility
+
+Low signals:
+- inactivity_recent
+
+The model should determine the grouping based on metric values.
 
 ## Key Observations
 
@@ -37,6 +81,36 @@ Generate the report using this exact structure:
 ## Contributor Dynamics
 
 ## Change and Maintenance Patterns
+
+## Evidence Map
+
+Purpose:
+Link analytical conclusions with the metrics that support them.
+
+The section must map insights to the metrics used to infer them.
+
+Example format:
+
+## Evidence Map
+
+Contributor concentration
+evidence:
+- gini_coefficient: 0.89
+- bus_factor: 2
+
+Contributor instability
+evidence:
+- developer_turnover: 0.88
+- historical inactivity: 1130 days
+
+Release cadence
+evidence:
+- release_frequency: every ~18 days
+- commit_frequency: 3.8/day
+
+Rules for the model:
+- Every major interpretation must cite the metrics that support it.
+- Do not introduce evidence not present in the metrics input.
 
 ## Final Assessment
 
