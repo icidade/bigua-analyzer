@@ -2,9 +2,11 @@
 
 This file tracks notable changes to bigua-analyzer.
 
-## Unreleased
+## v0.3.0
 
-- No unreleased entries yet.
+- Added multi-LLM integration for report generation.
+- Added page info.
+- Added important OSS documents kit.
 
 ## v0.2.0
 
