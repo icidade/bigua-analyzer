@@ -9,6 +9,7 @@ A research tool that analyzes public GitHub repositories to extract engineering 
 [![Release](https://img.shields.io/github/v/release/icidade/bigua-analyzer)](https://github.com/icidade/bigua-analyzer/releases)
 [![License](https://img.shields.io/github/license/icidade/bigua-analyzer)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue)]()
+[![Support on Patreon](https://img.shields.io/badge/Support-Patreon-ff424d?logo=patreon)](https://patreon.com/bigua_analyzer)
 
 ## Why the name?
 
@@ -328,3 +329,12 @@ https://github.com/org/repo,main,my-repo
 - See [CODE_OF_CONDUCT.md](c:\Users\Samsung\git\bigua-analyzer\CODE_OF_CONDUCT.md) for community expectations.
 - See [SECURITY.md](c:\Users\Samsung\git\bigua-analyzer\SECURITY.md) for vulnerability reporting guidance.
 - See [CHANGELOG.md](c:\Users\Samsung\git\bigua-analyzer\CHANGELOG.md) for notable release history.
+
+---
+
+## Support
+
+If this research is useful for your work or organization,
+consider supporting its development:
+
+👉 https://patreon.com/bigua_analyzer
