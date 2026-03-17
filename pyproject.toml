@@ -9,5 +9,10 @@ dependencies = [
   "matplotlib>=3.8.0",
 ]
 
+[project.optional-dependencies]
+ai = [
+  "markdown>=3.5",
+]
+
 [project.scripts]
 bigua-analyzer = "bigua_analyzer.cli:main"

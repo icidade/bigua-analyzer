@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use bigua-analyzer in research, please cite this software."
+title: "bigua-analyzer"
+type: software
+authors:
+  - family-names: "icidade"
+version: "0.2.0"
+date-released: "2026-03-16"
+license: "MIT"
+repository-code: "https://github.com/icidade/bigua-analyzer"
+url: "https://github.com/icidade/bigua-analyzer"
+abstract: "A research tool that analyzes public GitHub repositories to extract socio-technical development metrics."
+keywords:
+  - software engineering
+  - open source
+  - mining software repositories
+  - repository analytics
+  - socio-technical metrics

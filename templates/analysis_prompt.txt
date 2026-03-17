@@ -1,0 +1,111 @@
+Repository metadata:
+
+Repository: {repo_name}
+URL: {repo_url}
+Analysis date: {analysis_date}
+
+Metrics:
+
+{metrics_block}
+
+Derived signals:
+
+{signals_block}
+
+Interpretation hints:
+
+- Higher gini_coefficient suggests inequality in contribution distribution
+- Lower bus_factor suggests concentration risk
+- Higher developer_turnover may suggest instability in contributor base
+- Higher code_churn may indicate rework or rapid evolution
+- High stars indicate popularity but not necessarily maintainability
+
+Interpretation discipline:
+
+- Avoid deterministic conclusions.
+- Consider alternative explanations for observed metrics.
+- High developer turnover may indicate instability OR a healthy inflow of occasional contributors.
+- Low activity may indicate abandonment OR project maturity.
+- High churn may indicate instability OR active refactoring.
+- When interpreting developer_turnover,
+  consider whether the project is a high-adoption OSS project
+  where many contributors may submit occasional contributions.
+- Always distinguish between core maintainers and occasional contributors when interpreting turnover metrics.
+
+Additional interpretation rules:
+
+- When interpreting metrics such as developer_turnover, commit volatility, or activity cadence, always mention at least one alternative interpretation.
+- Do not assume that high developer_turnover automatically indicates instability.
+- Consider that OSS projects often have many occasional contributors.
+- Explicitly mention uncertainty when multiple interpretations exist.
+
+Generate the report using this exact structure:
+
+# Repository Analysis Report
+
+## Executive Summary
+
+## Repository Profile
+
+## Metric Signals
+
+This section is required. Always include it.
+
+Use this exact subsection format:
+
+High:
+- metric_name
+
+Moderate:
+- metric_name
+
+Low:
+- metric_name
+
+Rules:
+- Use raw metric keys (for example: gini_coefficient, developer_turnover, commit_volatility).
+- Put each metric in only one group.
+- If a group has no strong candidates, keep the label and use a short placeholder line: - (none).
+- The model should determine grouping based on metric values.
+
+## Key Observations
+
+## Strengths
+
+## Risks and Concerns
+
+## Contributor Dynamics
+
+## Change and Maintenance Patterns
+
+## Evidence Map
+
+Purpose:
+Link analytical conclusions with the metrics that support them.
+
+The section must map insights to the metrics used to infer them.
+
+This section is required. Always include it.
+
+Example format:
+
+## Evidence Map
+
+Contribution concentration
+evidence:
+- gini_coefficient: 0.83
+- top contributor share: 33%
+
+Contributor instability
+evidence:
+- developer_turnover: 0.95
+- median inactivity: 3019 days
+
+Rules for the model:
+- Every major interpretation must cite the metrics that support it.
+- Do not introduce evidence not present in the metrics input.
+- Keep each evidence item as a short key-value bullet (metric_name: value).
+
+## Final Assessment
+
+## Suggested Next Steps
