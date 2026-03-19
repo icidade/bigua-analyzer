@@ -99,7 +99,12 @@ def _add_analyze_parser(subparsers) -> None:
 
 def _run_single(args) -> List[RepoResult]:
     spec = RepoSpec(url=args.repo, ref=args.ref)
-    r = analyze_repo(spec, cache_dir=Path(args.cache_dir), sdlc_mode=args.sdlc_mode)
+    r = analyze_repo(
+        spec,
+        cache_dir=Path(args.cache_dir),
+        sdlc_mode=args.sdlc_mode,
+        emit_performance=args.profile,
+    )
     return [r]
 
 
@@ -121,7 +126,13 @@ def _run_dataset(args) -> List[RepoResult]:
 
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         futures = {
-            executor.submit(analyze_repo, repo, cache_dir, sdlc_mode=sdlc_mode): repo
+            executor.submit(
+                analyze_repo,
+                repo,
+                cache_dir,
+                sdlc_mode=sdlc_mode,
+                emit_performance=args.profile,
+            ): repo
             for repo in repos
         }
         completed = 0
