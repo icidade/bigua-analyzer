@@ -9,6 +9,17 @@ import pandas as pd
 from .models import RepoResult, RepoSpec
 
 
+def _flatten_dict(data: typing.Mapping[str, typing.Any], prefix: str = "") -> typing.Dict[str, typing.Any]:
+    flattened: typing.Dict[str, typing.Any] = {}
+    for key, value in data.items():
+        out_key = f"{prefix}{key}" if not prefix else f"{prefix}_{key}"
+        if isinstance(value, dict):
+            flattened.update(_flatten_dict(value, out_key))
+        else:
+            flattened[out_key] = value
+    return flattened
+
+
 def sstrip(v: typing.Any) -> typing.Optional[str]:
     if v is None:
         return None
@@ -103,7 +114,7 @@ def write_csv(results: typing.Iterable[RepoResult], out_path: Path) -> None:
             "repo_id": r.repo.repo_id,
             "ok": r.ok,
             "error": r.error,
-            **r.metrics,
+            **_flatten_dict(r.metrics),
         }
         rows.append(row)
 

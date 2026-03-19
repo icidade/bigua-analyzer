@@ -118,6 +118,41 @@ They help normalize and interpret ecosystem signals.
 
 ---
 
+## AI Influence Calibration Outputs
+
+The AI Influence Score now includes additional calibration and interpretability outputs intended to reduce false positives in young and legacy repositories.
+
+Key fields:
+
+- `ai_influence_score`
+- `ai_influence_confidence`
+- `ai_influence_rationale`
+- `ai_temporal_adoption_prior`
+- `ai_temporal_anomaly_weight`
+- `ai_dominant_activity_period`
+
+Intermediate heuristic outputs:
+
+- `ai_h1_textual_markers`
+- `ai_h2_explicit_attribution`
+- `ai_h3_temporal_prior`
+- `ai_h4_burstiness`
+- `ai_h5_style_shift`
+- `ai_h6_large_low_discussion`
+- `ai_h7_output_asymmetry`
+- `ai_h8_tooling_footprint`
+- `ai_h9_generated_text_pattern`
+
+Interpretation notes:
+
+- Very young repositories have their burstiness signal downscaled to avoid startup-phase false positives.
+- Repositories dominated by pre-2022 activity are constrained by a historical feasibility rule so they are not labeled as AI-driven without strong non-temporal evidence.
+- Large, long-lived repositories receive legacy variance protection to avoid confusing structural evolution with AI influence.
+- Confidence reflects evidence coverage and repository size; small or sparse repositories should not produce highly confident AI judgments.
+
+
+---
+
 ### Developer Turnover
 
 Measures the proportion of contributors who have become inactive.
@@ -154,6 +189,126 @@ Values closer to 1 indicate high inequality (few contributors dominate), closer 
 
 
 ---
+
+## AI-aware and Hybrid SDLC Metrics
+
+These metrics are additive and are designed for repositories analyzed under `auto`, `hybrid`, or `ai` SDLC contexts.
+
+### AI Influence Score
+
+Repository-level estimate of how strongly the development process appears to be AI-assisted.
+
+Definition:
+Weighted combination of four normalized repository-level sub-scores:
+
+- commit_pattern_score
+- temporal_anomaly_score
+- style_uniformity_score
+- metadata_signal_score
+
+Default weights:
+
+- commit_pattern_score: 0.30
+- temporal_anomaly_score: 0.20
+- style_uniformity_score: 0.30
+- metadata_signal_score: 0.20
+
+If one or more sub-scores are unavailable, the remaining weights are renormalized proportionally.
+
+Temporal prior:
+
+- dominant activity before 2022: +0.00
+- dominant activity in 2022-2023: +0.05
+- dominant activity in 2024 onward: +0.10
+
+Important:
+
+- The score is repository-level, not per-commit.
+- Date is only a weak contextual prior.
+- Date alone must never classify a repository as hybrid or AI-driven.
+
+Output fields:
+
+- ai_influence_score
+- ai_weighted_base_score
+- ai_temporal_adoption_prior
+- ai_dominant_activity_period
+- ai_commit_pattern_score
+- ai_temporal_anomaly_score
+- ai_style_uniformity_score
+- ai_metadata_signal_score
+
+---
+
+### AI Dependency Ratio (AIDR)
+
+Definition:
+In v1, this returns AI Influence Score directly.
+
+Purpose:
+Expose the current estimated dependency on AI-assisted development in a simple normalized form.
+
+---
+
+### Cognitive Bus Factor (CBF)
+
+Definition:
+Human-maintainability proxy derived by degrading the existing bus factor proportionally to AI Influence Score.
+
+Purpose:
+Estimate how many human contributors could plausibly maintain the system without AI assistance.
+
+Interpretation:
+Lower values may indicate stronger dependence on AI-assisted productivity for continuity.
+
+---
+
+### AI Monoculture Risk (AMR)
+
+Definition:
+Risk proxy that increases when style uniformity is high and contributor diversity is low.
+
+Purpose:
+Highlight repositories that may be converging toward homogeneous AI-mediated change patterns.
+
+---
+
+### AI Contribution Homogeneity (AICH)
+
+Definition:
+Structural homogeneity proxy derived from repeated file patterns, extension concentration, and path-depth uniformity.
+
+Purpose:
+Capture unusually consistent repository structure that may be associated with repeated AI-assisted workflows.
+
+---
+
+### Agentic Complexity Index (ACI)
+
+Definition:
+Automation-oriented signal derived from bot activity, automation metadata, scripts, pipelines, and detectable agent-related references.
+
+Purpose:
+Estimate how much of the repository workflow appears to rely on automation or agentic tooling.
+
+---
+
+### Effective SDLC Mode
+
+Definition:
+Resolved SDLC interpretation for the repository.
+
+Modes:
+
+- human
+- hybrid
+- ai
+
+Resolution rule when the selected mode is `auto`:
+
+- AI Influence Score < 0.30 → human
+- AI Influence Score >= 0.30 and < 0.60 → hybrid
+- AI Influence Score >= 0.60 → ai
 
 ## Experimental Metrics
 

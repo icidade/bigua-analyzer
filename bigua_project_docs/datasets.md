@@ -4,6 +4,12 @@ This document lists the public datasets used by bigua-analyzer for repository ec
 
 The project intentionally relies only on **publicly available data sources**.
 
+Note on hybrid SDLC analysis:
+
+- `sdlc_mode` is selected via CLI, not provided by the repository dataset schema.
+- Existing CSV/JSONL input datasets remain backward-compatible.
+- AI-aware fields such as `effective_sdlc_mode` and `ai_influence_score` are generated as output metadata during analysis.
+
 ---
 
 ## GitHub Repository Data

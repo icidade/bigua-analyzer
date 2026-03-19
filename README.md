@@ -82,7 +82,7 @@ bigua-analyzer uses **subcommands**:
 
 | Subcommand | Purpose |
 |---|---|
-| `analyze` | Clone repositories and extract metrics to CSV/JSONL |
+| `analyze` | Clone repositories and extract metrics to CSV/JSONL across human, hybrid, or AI-aware SDLC modes |
 | `analyze-report` | Generate an AI-assisted Markdown + HTML report from a metrics CSV |
 
 ---
@@ -119,8 +119,26 @@ bigua-analyzer analyze --dataset repos.csv --out analysis-results
 - Specify a branch/tag/SHA: `--ref main`
 - Limit number of repos: `--max-repos 10`
 - Parallel processing: `--max-workers 8` (default 4)
+- SDLC analysis mode: `--sdlc-mode auto|human|hybrid|ai` (default `auto`)
 - Output format: `--format csv` or `--format jsonl` or `--format both` (default)
 - Custom cache directory: `--cache-dir /path/to/cache`
+
+#### SDLC modes
+
+`bigua-analyzer analyze` supports four SDLC modes:
+
+- `auto`: computes a repository-level AI Influence Score and derives the effective mode automatically
+- `human`: keeps traditional repository metrics as the primary analysis lens
+- `hybrid`: combines traditional metrics with AI-aware metrics
+- `ai`: prioritizes AI-aware metrics while preserving existing output fields for compatibility
+
+When `--sdlc-mode auto` is used, the effective mode is resolved from the AI Influence Score:
+
+- `< 0.30` → `human`
+- `>= 0.30` and `< 0.60` → `hybrid`
+- `>= 0.60` → `ai`
+
+The AI Influence Score is repository-level and is based on normalized heuristics for commit patterns, temporal anomalies, style uniformity, and metadata signals. Repository age is used only as a weak contextual prior and is never sufficient on its own to classify a project as `hybrid` or `ai`.
 
 #### Examples
 
@@ -139,15 +157,27 @@ bigua-analyzer analyze --dataset repos.csv --out analysis-results
    bigua-analyzer analyze --dataset repos.csv --max-repos 5 --max-workers 2 --out test-output
    ```
 
+4. **Hybrid SDLC analysis:**
+    ```bash
+    bigua-analyzer analyze https://github.com/org/repo --sdlc-mode hybrid --out hybrid-results
+    ```
+
+5. **Auto-detect effective SDLC mode:**
+    ```bash
+    bigua-analyzer analyze https://github.com/org/repo --sdlc-mode auto --out auto-results
+    ```
+
 ---
 
 ### `analyze-report` — Generate an AI report
 
-Takes a metrics CSV produced by `analyze` and sends it to an OpenAI-compatible LLM to generate a professional Markdown analysis report, optionally rendered as HTML.
+Takes a metrics CSV produced by `analyze` and sends it to the selected LLM provider to generate a professional Markdown analysis report, optionally rendered as HTML.
+
+Supported providers include `openai-compatible`, `openai`, `xai`, `gemini`, and local models via `ollama`.
 
 > **Privacy warning:** Repository metadata and derived metrics may be sent to an external LLM API when using `analyze-report`. If you are working with private or sensitive repositories, verify your organization policy before running this command.
 
-`analyze-report` asks for interactive confirmation before sending data to the LLM API.
+`analyze-report` asks for interactive confirmation before sending data to the configured LLM backend.
 Use `--yes` to bypass this prompt in CI or scripted runs.
 
 #### Pipeline
@@ -157,7 +187,7 @@ metrics CSV
     ↓
 prompt builder  (metrics + derived signals)
     ↓
-LLM  (OpenAI-compatible)
+LLM  (provider-selected: cloud or local)
     ↓
 analysis_report.md
     ↓
@@ -172,6 +202,8 @@ Derived signals are computed automatically before the prompt is sent:
 | `bus_factor_risk` | `high` if `bus_factor < 2`, else `moderate` |
 | `contributor_stability` | `unstable` if `developer_turnover > 0.5`, else `stable` |
 | `change_velocity` | `high` if `code_churn > 1000`, else `normal` |
+
+If the input CSV contains SDLC context fields such as `sdlc_mode`, `effective_sdlc_mode`, and `ai_influence_score`, `analyze-report` includes that context in the LLM prompt and asks the model to interpret the repository according to human, hybrid, or AI-assisted development conditions.
 
 #### Quick start
 
@@ -298,6 +330,24 @@ Results are saved as CSV and/or JSONL files. Each row/object contains:
 - Success status and error messages (if any)
 - All calculated metrics
 
+When SDLC-aware analysis is enabled, outputs also include additive fields such as:
+
+- `sdlc_mode`
+- `effective_sdlc_mode`
+- `ai_influence_score`
+- `ai_weighted_base_score`
+- `ai_temporal_adoption_prior`
+- `ai_temporal_anomaly_weight`
+- `ai_commit_pattern_score`
+- `ai_temporal_anomaly_score_raw`
+- `ai_temporal_anomaly_score`
+- `ai_style_uniformity_score`
+- `ai_metadata_signal_score`
+- `ai_influence_rationale`
+
+In JSONL output, AI-aware metrics are preserved under `metrics.ai_metrics`.
+In CSV output, nested AI-aware metrics are flattened into columns such as `ai_metrics_aidr`, `ai_metrics_cbf`, `ai_metrics_amr`, `ai_metrics_aich`, and `ai_metrics_aci`.
+
 > **Note:** For the `analyze` command, if `--out` is provided as a bare filename (no directory), output is written under `out/` by default (e.g., `--out results` → `out/results.csv`). If you specify a path (e.g., `--out data/results`), that path is used as given.
 
 See `bigua_project_docs/metrics.md` for detailed metric definitions.
@@ -325,10 +375,10 @@ https://github.com/org/repo,main,my-repo
 
 ## Project Policies
 
-- See [CONTRIBUTING.md](c:\Users\Samsung\git\bigua-analyzer\CONTRIBUTING.md) for contribution workflow and pull request guidance.
-- See [CODE_OF_CONDUCT.md](c:\Users\Samsung\git\bigua-analyzer\CODE_OF_CONDUCT.md) for community expectations.
-- See [SECURITY.md](c:\Users\Samsung\git\bigua-analyzer\SECURITY.md) for vulnerability reporting guidance.
-- See [CHANGELOG.md](c:\Users\Samsung\git\bigua-analyzer\CHANGELOG.md) for notable release history.
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution workflow and pull request guidance.
+- See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
+- See [SECURITY.md](SECURITY.md) for vulnerability reporting guidance.
+- See [CHANGELOG.md](CHANGELOG.md) for notable release history.
 
 ---
 
