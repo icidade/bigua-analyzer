@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 from ..gitops import git_stdout
+from ..perf import PerformanceRecorder
 from ..sdlc import clamp01
 
 _GENERIC_MESSAGE_RE = re.compile(
@@ -80,11 +81,22 @@ def _normalize_weighted_score(subscores: Dict[str, float | None], weights: Dict[
     return sum((weights[key] / total_weight) * float(value) for key, value in available.items())
 
 
-def _parse_commit_log(repo_dir: Path, ref: str = "HEAD") -> list[dict[str, Any]]:
-    out = git_stdout(
-        repo_dir,
-        ["log", "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>", "--numstat", ref],
-    ).strip()
+def _parse_commit_log(
+    repo_dir: Path,
+    ref: str = "HEAD",
+    profiler: Optional[PerformanceRecorder] = None,
+) -> list[dict[str, Any]]:
+    if profiler is not None:
+        with profiler.track("commit_history_read_ms"):
+            out = git_stdout(
+                repo_dir,
+                ["log", "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>", "--numstat", ref],
+            ).strip()
+    else:
+        out = git_stdout(
+            repo_dir,
+            ["log", "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>", "--numstat", ref],
+        ).strip()
     if not out:
         return []
 
@@ -92,52 +104,101 @@ def _parse_commit_log(repo_dir: Path, ref: str = "HEAD") -> list[dict[str, Any]]
     current: dict[str, Any] | None = None
     header_line_index = 0
 
-    for raw_line in out.splitlines():
-        line = raw_line.rstrip("\n")
-        if line == "__BIGUA_COMMIT__":
-            if current is not None:
-                commits.append(current)
-            current = {
-                "message": "",
-                "timestamp": None,
-                "author": "",
-                "files_changed": 0,
-                "lines_changed": 0,
-            }
-            header_line_index = 0
-            continue
+    if profiler is not None:
+        with profiler.track("commit_history_parse_ms"):
+            for raw_line in out.splitlines():
+                line = raw_line.rstrip("\n")
+                if line == "__BIGUA_COMMIT__":
+                    if current is not None:
+                        commits.append(current)
+                    current = {
+                        "message": "",
+                        "timestamp": None,
+                        "author": "",
+                        "files_changed": 0,
+                        "lines_changed": 0,
+                    }
+                    header_line_index = 0
+                    continue
 
-        if current is None:
-            continue
+                if current is None:
+                    continue
 
-        if header_line_index == 0:
-            current["message"] = line.strip()
-            header_line_index = 1
-            continue
-        if header_line_index == 1:
-            try:
-                current["timestamp"] = int(line.strip())
-            except ValueError:
-                current["timestamp"] = None
-            header_line_index = 2
-            continue
-        if header_line_index == 2:
-            current["author"] = line.strip()
-            header_line_index = 3
-            continue
+                if header_line_index == 0:
+                    current["message"] = line.strip()
+                    header_line_index = 1
+                    continue
+                if header_line_index == 1:
+                    try:
+                        current["timestamp"] = int(line.strip())
+                    except ValueError:
+                        current["timestamp"] = None
+                    header_line_index = 2
+                    continue
+                if header_line_index == 2:
+                    current["author"] = line.strip()
+                    header_line_index = 3
+                    continue
 
-        if not line.strip():
-            continue
+                if not line.strip():
+                    continue
 
-        parts = line.split("\t")
-        if len(parts) != 3:
-            continue
+                parts = line.split("\t")
+                if len(parts) != 3:
+                    continue
 
-        inserted_raw, deleted_raw, _path = parts
-        inserted = 0 if inserted_raw == "-" else int(inserted_raw)
-        deleted = 0 if deleted_raw == "-" else int(deleted_raw)
-        current["files_changed"] += 1
-        current["lines_changed"] += inserted + deleted
+                inserted_raw, deleted_raw, _path = parts
+                inserted = 0 if inserted_raw == "-" else int(inserted_raw)
+                deleted = 0 if deleted_raw == "-" else int(deleted_raw)
+                current["files_changed"] += 1
+                current["lines_changed"] += inserted + deleted
+    else:
+        for raw_line in out.splitlines():
+            line = raw_line.rstrip("\n")
+            if line == "__BIGUA_COMMIT__":
+                if current is not None:
+                    commits.append(current)
+                current = {
+                    "message": "",
+                    "timestamp": None,
+                    "author": "",
+                    "files_changed": 0,
+                    "lines_changed": 0,
+                }
+                header_line_index = 0
+                continue
+
+            if current is None:
+                continue
+
+            if header_line_index == 0:
+                current["message"] = line.strip()
+                header_line_index = 1
+                continue
+            if header_line_index == 1:
+                try:
+                    current["timestamp"] = int(line.strip())
+                except ValueError:
+                    current["timestamp"] = None
+                header_line_index = 2
+                continue
+            if header_line_index == 2:
+                current["author"] = line.strip()
+                header_line_index = 3
+                continue
+
+            if not line.strip():
+                continue
+
+            parts = line.split("\t")
+            if len(parts) != 3:
+                continue
+
+            inserted_raw, deleted_raw, _path = parts
+            inserted = 0 if inserted_raw == "-" else int(inserted_raw)
+            deleted = 0 if deleted_raw == "-" else int(deleted_raw)
+            current["files_changed"] += 1
+            current["lines_changed"] += inserted + deleted
 
     if current is not None:
         commits.append(current)
@@ -145,10 +206,20 @@ def _parse_commit_log(repo_dir: Path, ref: str = "HEAD") -> list[dict[str, Any]]
     return commits
 
 
-def collect_repository_ai_data(repo_dir: Path, ref: str = "HEAD") -> Dict[str, Any]:
-    commits = _parse_commit_log(repo_dir, ref)
-    tree_output = git_stdout(repo_dir, ["ls-tree", "-r", "--name-only", ref]).strip()
-    file_paths = [line.strip() for line in tree_output.splitlines() if line.strip()]
+def collect_repository_ai_data(
+    repo_dir: Path,
+    ref: str = "HEAD",
+    profiler: Optional[PerformanceRecorder] = None,
+) -> Dict[str, Any]:
+    commits = _parse_commit_log(repo_dir, ref, profiler=profiler)
+    if profiler is not None:
+        with profiler.track("file_tree_read_ms"):
+            tree_output = git_stdout(repo_dir, ["ls-tree", "-r", "--name-only", ref]).strip()
+        with profiler.track("file_tree_parse_ms"):
+            file_paths = [line.strip() for line in tree_output.splitlines() if line.strip()]
+    else:
+        tree_output = git_stdout(repo_dir, ["ls-tree", "-r", "--name-only", ref]).strip()
+        file_paths = [line.strip() for line in tree_output.splitlines() if line.strip()]
 
     return {
         "commits": commits,
@@ -509,15 +580,38 @@ def _has_strong_signal_diversity(subscores: Dict[str, float | None]) -> bool:
     return moderate_count >= 2 or (strong_count >= 1 and weak_count >= 3)
 
 
-def compute_ai_influence_details(repo_data: Dict[str, Any]) -> AIInfluenceDetails:
+def compute_ai_influence_details(
+    repo_data: Dict[str, Any],
+    profiler: Optional[PerformanceRecorder] = None,
+) -> AIInfluenceDetails:
+    if profiler is not None:
+        with profiler.track("ai_inference_ms"):
+            return _compute_ai_influence_details_impl(repo_data, profiler=profiler)
+    return _compute_ai_influence_details_impl(repo_data, profiler=profiler)
+
+
+def _compute_ai_influence_details_impl(
+    repo_data: Dict[str, Any],
+    profiler: Optional[PerformanceRecorder] = None,
+) -> AIInfluenceDetails:
     commits = list(repo_data.get("commits", []))
     file_paths = list(repo_data.get("file_paths", []))
     commit_count = len(commits)
     contributor_count = _infer_contributor_count(repo_data, commits)
 
-    temporal_raw = compute_temporal_anomaly_score(repo_data)
-    temporal_weight = _temporal_anomaly_weight(repo_data)
-    temporal_adjusted = None if temporal_raw is None else clamp01(temporal_raw * temporal_weight)
+    if profiler is not None:
+        with profiler.track("temporal_aggregation_ms"):
+            temporal_raw = compute_temporal_anomaly_score(repo_data)
+            temporal_weight = _temporal_anomaly_weight(repo_data)
+            temporal_adjusted = None if temporal_raw is None else clamp01(temporal_raw * temporal_weight)
+            dominant_period = _dominant_activity_period(repo_data)
+            temporal_prior = _temporal_adoption_prior(dominant_period)
+    else:
+        temporal_raw = compute_temporal_anomaly_score(repo_data)
+        temporal_weight = _temporal_anomaly_weight(repo_data)
+        temporal_adjusted = None if temporal_raw is None else clamp01(temporal_raw * temporal_weight)
+        dominant_period = _dominant_activity_period(repo_data)
+        temporal_prior = _temporal_adoption_prior(dominant_period)
 
     h1_textual_markers = _ai_reference_score(commits, file_paths)
     h2_explicit_attribution = _explicit_ai_attribution_score(commits, file_paths)
@@ -539,8 +633,6 @@ def compute_ai_influence_details(repo_data: Dict[str, Any]) -> AIInfluenceDetail
         "metadata_signal_score": 0.20,
     }
     weighted_base_score = _normalize_weighted_score(subscores, weights)
-    dominant_period = _dominant_activity_period(repo_data)
-    temporal_prior = _temporal_adoption_prior(dominant_period)
     ai_score = clamp01(weighted_base_score + temporal_prior)
 
     historical_feasibility_factor = 1.0

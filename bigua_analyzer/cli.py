@@ -44,6 +44,27 @@ def _print_progress(
     print(f"[progress] {message}{suffix}", file=sys.stderr, flush=True)
 
 
+def _format_performance_summary(result: RepoResult, limit: int = 4) -> str | None:
+    timings = result.metrics.get("performance")
+    if not isinstance(timings, dict) or not timings:
+        return None
+
+    ranked = sorted(
+        (
+            (str(name), float(value))
+            for name, value in timings.items()
+            if isinstance(value, (int, float))
+        ),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    if not ranked:
+        return None
+
+    top_entries = ranked[:limit]
+    return ", ".join(f"{name}={value:.1f}ms" for name, value in top_entries)
+
+
 # ---------------------------------------------------------------------------
 # Sub-command: analyze  (existing behaviour)
 # ---------------------------------------------------------------------------
@@ -63,6 +84,11 @@ def _add_analyze_parser(subparsers) -> None:
     p.add_argument("--max-repos", type=int, default=None, help="Limit number of repos from dataset (useful for testing).")
     p.add_argument("--max-workers", type=int, default=4, help="Maximum number of parallel threads for dataset processing.")
     p.add_argument(
+        "--profile",
+        action="store_true",
+        help="Print a compact performance summary for each completed repository.",
+    )
+    p.add_argument(
         "--sdlc-mode",
         choices=["auto", "human", "hybrid", "ai"],
         default="auto",
@@ -73,7 +99,12 @@ def _add_analyze_parser(subparsers) -> None:
 
 def _run_single(args) -> List[RepoResult]:
     spec = RepoSpec(url=args.repo, ref=args.ref)
-    r = analyze_repo(spec, cache_dir=Path(args.cache_dir), sdlc_mode=args.sdlc_mode)
+    r = analyze_repo(
+        spec,
+        cache_dir=Path(args.cache_dir),
+        sdlc_mode=args.sdlc_mode,
+        emit_performance=args.profile,
+    )
     return [r]
 
 
@@ -95,7 +126,13 @@ def _run_dataset(args) -> List[RepoResult]:
 
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         futures = {
-            executor.submit(analyze_repo, repo, cache_dir, sdlc_mode=sdlc_mode): repo
+            executor.submit(
+                analyze_repo,
+                repo,
+                cache_dir,
+                sdlc_mode=sdlc_mode,
+                emit_performance=args.profile,
+            ): repo
             for repo in repos
         }
         completed = 0
@@ -111,6 +148,10 @@ def _run_dataset(args) -> List[RepoResult]:
                 completed,
                 total_repos,
             )
+            if args.profile and result.ok:
+                summary = _format_performance_summary(result)
+                if summary:
+                    print(f"[profile] {repo_label}: {summary}", file=sys.stderr, flush=True)
 
     return results
 
@@ -141,6 +182,14 @@ def _cmd_analyze(args) -> None:
             if not r.ok:
                 rid = r.repo.repo_id or r.repo.url
                 print(f"- {rid}: {r.error}")
+
+    if args.profile and not args.dataset:
+        for result in results:
+            if result.ok:
+                repo_label = result.repo.repo_id or result.repo.url
+                summary = _format_performance_summary(result)
+                if summary:
+                    print(f"[profile] {repo_label}: {summary}", file=sys.stderr, flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -319,3 +368,7 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
     args.func(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from bigua_analyzer.metrics import collect_all_metrics
+from bigua_analyzer.perf import PerformanceRecorder
 
 
 class MetricsIntegrationTests(unittest.TestCase):
@@ -72,6 +73,21 @@ class MetricsIntegrationTests(unittest.TestCase):
         self.assertIn("ai_h7_output_asymmetry", metrics)
         self.assertIn("ai_h8_tooling_footprint", metrics)
         self.assertIn("ai_h9_generated_text_pattern", metrics)
+
+    def test_profiler_captures_breakdown_for_auto_mode(self) -> None:
+        repo_dir = self._create_repo()
+        profiler = PerformanceRecorder()
+
+        collect_all_metrics(repo_dir, "main", sdlc_mode="auto", profiler=profiler)
+
+        timings = profiler.snapshot_ms()
+        self.assertIn("repository_basics_ms", timings)
+        self.assertIn("standard_metric_calculation_ms", timings)
+        self.assertIn("commit_history_read_ms", timings)
+        self.assertIn("commit_history_parse_ms", timings)
+        self.assertIn("file_tree_read_ms", timings)
+        self.assertIn("temporal_aggregation_ms", timings)
+        self.assertIn("ai_inference_ms", timings)
 
 
 if __name__ == "__main__":

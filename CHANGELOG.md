@@ -2,6 +2,17 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.4.2
+
+Release focus: performance observability and benchmarking support for large repositories.
+
+- Added pipeline performance instrumentation with per-stage timing breakdown for analysis and report generation internals.
+- Added `--profile` mode to print compact per-repository timing summaries during analysis runs.
+- Added profiling coverage for expensive steps including clone/fetch, commit history read/parse, standard metric calculation, temporal aggregation, AI inference, and report LLM/render stages.
+- Added `scripts/benchmark_workers.py` to benchmark dataset throughput across different worker counts.
+- Kept backward-compatible output defaults by emitting `performance` metrics only when profiling is explicitly enabled.
+- Added tests covering profile flag parsing, profiling breakdown capture, and report generation flow stability.
+
 ## v0.4.1
 
 Release focus: patch improvements for maintainability, typing safety, and runtime behavior.

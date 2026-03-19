@@ -6,6 +6,7 @@ from pathlib import Path
 from .gitops import GitError, checkout_ref, ensure_cloned
 from .metrics import collect_all_metrics
 from .models import RepoResult, RepoSpec
+from .perf import PerformanceRecorder
 from .sdlc import SDLCMode
 
 
@@ -13,18 +14,46 @@ from .sdlc import SDLCMode
 cache_lock = threading.Lock()
 
 
-def analyze_repo(repo: RepoSpec, cache_dir: Path, sdlc_mode: SDLCMode = "auto") -> RepoResult:
+def analyze_repo(
+    repo: RepoSpec,
+    cache_dir: Path,
+    sdlc_mode: SDLCMode = "auto",
+    emit_performance: bool = False,
+) -> RepoResult:
     """
     Core: analyze exactly ONE repo.
     CLI/app decides whether it's single-run or batch dataset.
     """
+    profiler = PerformanceRecorder() if emit_performance else None
     try:
-        with cache_lock:
-            repo_dir = ensure_cloned(repo.url, cache_dir=cache_dir)
+        if profiler is not None:
+            with profiler.track("total_analysis_ms"):
+                with cache_lock:
+                    with profiler.track("clone_fetch_ms"):
+                        repo_dir = ensure_cloned(repo.url, cache_dir=cache_dir)
 
-        checkout_ref(repo_dir, repo.ref)
+                with profiler.track("checkout_ref_ms"):
+                    checkout_ref(repo_dir, repo.ref)
 
-        metrics = collect_all_metrics(repo_dir, repo.ref, sdlc_mode=sdlc_mode)
+                with profiler.track("metrics_collection_ms"):
+                    metrics = collect_all_metrics(
+                        repo_dir,
+                        repo.ref,
+                        sdlc_mode=sdlc_mode,
+                        profiler=profiler,
+                    )
+            metrics["performance"] = profiler.snapshot_ms()
+        else:
+            with cache_lock:
+                repo_dir = ensure_cloned(repo.url, cache_dir=cache_dir)
+
+            checkout_ref(repo_dir, repo.ref)
+            metrics = collect_all_metrics(
+                repo_dir,
+                repo.ref,
+                sdlc_mode=sdlc_mode,
+                profiler=None,
+            )
         return RepoResult(repo=repo, ok=True, metrics=metrics)
     except (GitError, Exception) as e:
         return RepoResult(repo=repo, ok=False, error=str(e))

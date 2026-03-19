@@ -16,12 +16,21 @@ import pandas as pd
 from .prompt_builder import build_prompt, SYSTEM_PROMPT
 from .llm_client import call_llm
 from .html_renderer import render_html
+from ..perf import PerformanceRecorder
 from ..time_utils import estimate_eta, format_elapsed
 
 
 def _print_step(step: int, total: int, message: str, start_time: float) -> None:
     elapsed = format_elapsed(start_time)
     print(f"[progress] Step {step}/{total}: {message} (elapsed: {elapsed})", file=sys.stderr, flush=True)
+
+
+def _print_profile(label: str, profiler: PerformanceRecorder) -> None:
+    timings = profiler.snapshot_ms()
+    if not timings:
+        return
+    summary = ", ".join(f"{name}={value}ms" for name, value in timings.items())
+    print(f"[profile] {label}: {summary}", file=sys.stderr, flush=True)
 
 
 def _row_to_metrics(row: "pd.Series[Any]") -> Dict[str, Any]:  # type: ignore[type-arg]
@@ -61,10 +70,31 @@ def _generate_markdown_for_row(
     temperature: float,
     top_p: float,
     max_tokens: int,
+    profiler: Optional[PerformanceRecorder] = None,
 ) -> str:
     resolved_url = str(row.get("url", ""))
     repo_name = _repo_name_from_url(resolved_url)
     metrics = _row_to_metrics(row)
+
+    if profiler is not None:
+        with profiler.track("prompt_build_ms"):
+            prompt = build_prompt(
+                repo_name=repo_name,
+                repo_url=resolved_url,
+                metrics_dict=metrics,
+            )
+        with profiler.track("external_llm_ms"):
+            return call_llm(
+                prompt,
+                provider=provider,
+                system_prompt=SYSTEM_PROMPT,
+                model=model,
+                base_url=base_url,
+                api_key=api_key,
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+            )
 
     prompt = build_prompt(
         repo_name=repo_name,
@@ -90,12 +120,21 @@ def _write_report_outputs(
     *,
     out_md: Path,
     out_html: Optional[Path],
+    profiler: Optional[PerformanceRecorder] = None,
 ) -> None:
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_md.write_text(markdown_report, encoding="utf-8")
+    if profiler is not None:
+        with profiler.track("markdown_write_ms"):
+            out_md.write_text(markdown_report, encoding="utf-8")
+    else:
+        out_md.write_text(markdown_report, encoding="utf-8")
 
     if out_html is not None:
-        render_html(markdown_report, out_html)
+        if profiler is not None:
+            with profiler.track("html_render_ms"):
+                render_html(markdown_report, out_html)
+        else:
+            render_html(markdown_report, out_html)
 
 
 def generate_report(
@@ -136,8 +175,10 @@ def generate_report(
         The raw Markdown text returned by the LLM.
     """
     start_time = time.time()
+    profiler = PerformanceRecorder()
     _print_step(1, 4, f"Loading metrics from {csv_path}", start_time)
-    df = pd.read_csv(csv_path)
+    with profiler.track("csv_load_ms"):
+        df = pd.read_csv(csv_path)
 
     if df.empty:
         raise ValueError(f"CSV file is empty: {csv_path}")
@@ -166,6 +207,7 @@ def generate_report(
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
+        profiler=profiler,
     )
 
     _print_step(3, 4, "Writing Markdown report", start_time)
@@ -173,12 +215,15 @@ def generate_report(
         markdown_report,
         out_md=out_md,
         out_html=out_html,
+        profiler=profiler,
     )
 
     if out_html is not None:
         _print_step(4, 4, f"Rendered HTML report to {out_html}", start_time)
     else:
         _print_step(4, 4, "Report generation completed", start_time)
+
+    _print_profile(f"report timings for {_repo_name_from_url(str(row.get('url', '')))}", profiler)
 
     return markdown_report
 
@@ -211,6 +256,7 @@ def generate_reports(
     _print_step(2, 2, f"Generating {total_rows} report(s)", start_time)
 
     for index, (_, row) in enumerate(df.iterrows(), start=1):
+        profiler = PerformanceRecorder()
         slug = _repo_slug(row)
         eta = estimate_eta(start_time, index - 1, total_rows)
         eta_suffix = f", ETA: {eta}" if eta is not None else ""
@@ -228,6 +274,7 @@ def generate_reports(
             temperature=temperature,
             top_p=top_p,
             max_tokens=max_tokens,
+            profiler=profiler,
         )
 
         out_md = out_dir / f"{slug}_analysis_report.md"
@@ -237,14 +284,16 @@ def generate_reports(
             markdown_report,
             out_md=out_md,
             out_html=out_html,
+            profiler=profiler,
         )
         written_reports.append(out_md)
-        eta = _estimate_eta(start_time, index, total_rows)
+        eta = estimate_eta(start_time, index, total_rows)
         eta_suffix = f", ETA: {eta}" if eta is not None else ""
         print(
-            f"[progress] Report {index}/{total_rows}: finished {slug} (elapsed: {_format_elapsed(start_time)}{eta_suffix})",
+            f"[progress] Report {index}/{total_rows}: finished {slug} (elapsed: {format_elapsed(start_time)}{eta_suffix})",
             file=sys.stderr,
             flush=True,
         )
+        _print_profile(f"report timings for {slug}", profiler)
 
     return written_reports
