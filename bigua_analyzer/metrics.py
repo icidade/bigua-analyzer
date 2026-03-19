@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 from .ai.ai_influence import collect_repository_ai_data, compute_ai_influence_details
 from .ai.ai_metrics import compute_ai_aware_metrics
 from .gitops import git_stdout
+from .perf import PerformanceRecorder
 from .sdlc import SDLCMode, resolve_effective_sdlc_mode
 
 
@@ -514,32 +515,68 @@ def developer_turnover(repo_dir: Path, inactive_days: int = 365, ref: str = "HEA
 
     return inactive_count / total_contributors
 
-def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None, sdlc_mode: SDLCMode = "auto") -> Dict[str, Any]:
+def collect_all_metrics(
+    repo_dir: Path,
+    ref: Optional[str] = None,
+    sdlc_mode: SDLCMode = "auto",
+    profiler: Optional[PerformanceRecorder] = None,
+) -> Dict[str, Any]:
     from .gitops import get_ref_for_commands
-    ref_str = get_ref_for_commands(repo_dir, ref)
+    if profiler is not None:
+        with profiler.track("resolve_ref_ms"):
+            ref_str = get_ref_for_commands(repo_dir, ref)
+    else:
+        ref_str = get_ref_for_commands(repo_dir, ref)
     
-    age = repo_age_days(repo_dir, ref_str)
-    commits = commit_count(repo_dir, ref_str)
-    contributors = contributor_count(repo_dir, ref_str)
+    if profiler is not None:
+        with profiler.track("repository_basics_ms"):
+            age = repo_age_days(repo_dir, ref_str)
+            commits = commit_count(repo_dir, ref_str)
+            contributors = contributor_count(repo_dir, ref_str)
+    else:
+        age = repo_age_days(repo_dir, ref_str)
+        commits = commit_count(repo_dir, ref_str)
+        contributors = contributor_count(repo_dir, ref_str)
 
-    metrics: Dict[str, Any] = {
-        "repo_age_days": age,
-        "commit_count": commits,
-        "contributor_count": contributors,
-        "top_contributor_share": round(top_contributor_share(repo_dir, ref_str), 6),
-        "bus_factor_50p": bus_factor_estimate(repo_dir, threshold=0.5, ref=ref_str),
-        "bus_factor_75p": bus_factor_estimate(repo_dir, threshold=0.75, ref=ref_str),
-        "commit_volatility": commit_volatility(repo_dir, ref_str),
-        "bus_factor_50p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.5, ref=ref_str),
-        "bus_factor_75p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.75, ref=ref_str),
-        "release_cadence_days": release_cadence_days(repo_dir),
-        "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
-        "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
-        "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
-        "gini_coefficient": gini_coefficient(repo_dir, ref_str),
-        "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
-    }
-    metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
+    if profiler is not None:
+        with profiler.track("standard_metric_calculation_ms"):
+            metrics: Dict[str, Any] = {
+                "repo_age_days": age,
+                "commit_count": commits,
+                "contributor_count": contributors,
+                "top_contributor_share": round(top_contributor_share(repo_dir, ref_str), 6),
+                "bus_factor_50p": bus_factor_estimate(repo_dir, threshold=0.5, ref=ref_str),
+                "bus_factor_75p": bus_factor_estimate(repo_dir, threshold=0.75, ref=ref_str),
+                "commit_volatility": commit_volatility(repo_dir, ref_str),
+                "bus_factor_50p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.5, ref=ref_str),
+                "bus_factor_75p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.75, ref=ref_str),
+                "release_cadence_days": release_cadence_days(repo_dir),
+                "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
+                "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
+                "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
+                "gini_coefficient": gini_coefficient(repo_dir, ref_str),
+                "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
+            }
+            metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
+    else:
+        metrics = {
+            "repo_age_days": age,
+            "commit_count": commits,
+            "contributor_count": contributors,
+            "top_contributor_share": round(top_contributor_share(repo_dir, ref_str), 6),
+            "bus_factor_50p": bus_factor_estimate(repo_dir, threshold=0.5, ref=ref_str),
+            "bus_factor_75p": bus_factor_estimate(repo_dir, threshold=0.75, ref=ref_str),
+            "commit_volatility": commit_volatility(repo_dir, ref_str),
+            "bus_factor_50p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.5, ref=ref_str),
+            "bus_factor_75p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.75, ref=ref_str),
+            "release_cadence_days": release_cadence_days(repo_dir),
+            "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
+            "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
+            "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
+            "gini_coefficient": gini_coefficient(repo_dir, ref_str),
+            "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
+        }
+        metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
 
     if sdlc_mode == "human":
         # Skip expensive full-history AI data collection when mode is explicitly human.
@@ -548,12 +585,12 @@ def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None, sdlc_mode: SD
             "file_paths": [],
         }
     else:
-        repo_data = collect_repository_ai_data(repo_dir, ref_str)
+        repo_data = collect_repository_ai_data(repo_dir, ref_str, profiler=profiler)
 
     repo_data["repo_age_days"] = age
     repo_data["commit_count"] = commits
     repo_data["contributor_count"] = contributors
-    ai_details = compute_ai_influence_details(repo_data)
+    ai_details = compute_ai_influence_details(repo_data, profiler=profiler)
     effective_sdlc_mode = resolve_effective_sdlc_mode(sdlc_mode, ai_details.ai_influence_score)
 
     metrics.update(
@@ -587,6 +624,10 @@ def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None, sdlc_mode: SD
     )
 
     if effective_sdlc_mode in {"hybrid", "ai"}:
-        metrics["ai_metrics"] = compute_ai_aware_metrics(metrics, ai_details, effective_sdlc_mode)
+        if profiler is not None:
+            with profiler.track("ai_metrics_aggregation_ms"):
+                metrics["ai_metrics"] = compute_ai_aware_metrics(metrics, ai_details, effective_sdlc_mode)
+        else:
+            metrics["ai_metrics"] = compute_ai_aware_metrics(metrics, ai_details, effective_sdlc_mode)
 
     return metrics

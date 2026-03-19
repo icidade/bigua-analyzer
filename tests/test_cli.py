@@ -21,6 +21,15 @@ class CLISdlcModeTests(unittest.TestCase):
         ])
         self.assertEqual(args.sdlc_mode, "hybrid")
 
+    def test_analyze_accepts_profile_flag(self) -> None:
+        parser = _build_parser()
+        args = parser.parse_args([
+            "analyze",
+            "https://github.com/example/repo",
+            "--profile",
+        ])
+        self.assertTrue(args.profile)
+
 
 if __name__ == "__main__":
     unittest.main()
