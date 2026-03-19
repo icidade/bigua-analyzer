@@ -1,6 +1,6 @@
 [project]
 name = "bigua-analyzer"
-version = "0.4.2"
+version = "0.4.3"
 description = "A research tool that analyzes public GitHub repositories to extract socio-technical development metrics."
 requires-python = ">=3.10"
 dependencies = [

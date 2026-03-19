@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
+from .analysis_scope import AnalysisConfig
 from .core import analyze_repo
 from .io_utils import read_dataset, write_csv, write_jsonl
 from .models import RepoResult, RepoSpec
@@ -89,6 +90,36 @@ def _add_analyze_parser(subparsers) -> None:
         help="Print a compact performance summary for each completed repository.",
     )
     p.add_argument(
+        "--mode",
+        choices=["full", "fast"],
+        default="full",
+        help="Analysis depth: full preserves complete-history behavior, fast uses scoped/sampled history.",
+    )
+    scope_group = p.add_mutually_exclusive_group()
+    scope_group.add_argument(
+        "--since",
+        type=str,
+        default=None,
+        help="Analyze commit history since YYYY-MM-DD.",
+    )
+    scope_group.add_argument(
+        "--time-window",
+        type=int,
+        default=None,
+        help="Analyze commit history within the last N days.",
+    )
+    p.add_argument(
+        "--sample-size",
+        type=int,
+        default=None,
+        help="Maximum number of commits to analyze inside the selected time scope.",
+    )
+    p.add_argument(
+        "--no-analysis-cache",
+        action="store_true",
+        help="Disable the persistent analysis cache for scoped commit history and AI scan inputs.",
+    )
+    p.add_argument(
         "--sdlc-mode",
         choices=["auto", "human", "hybrid", "ai"],
         default="auto",
@@ -99,11 +130,19 @@ def _add_analyze_parser(subparsers) -> None:
 
 def _run_single(args) -> List[RepoResult]:
     spec = RepoSpec(url=args.repo, ref=args.ref)
+    analysis_config = AnalysisConfig.resolve(
+        mode=args.mode,
+        since=args.since,
+        time_window_days=args.time_window,
+        sample_size=args.sample_size,
+        cache_enabled=not args.no_analysis_cache,
+    )
     r = analyze_repo(
         spec,
         cache_dir=Path(args.cache_dir),
         sdlc_mode=args.sdlc_mode,
         emit_performance=args.profile,
+        analysis_config=analysis_config,
     )
     return [r]
 
@@ -118,9 +157,16 @@ def _run_dataset(args) -> List[RepoResult]:
     cache_dir = Path(args.cache_dir)
     sdlc_mode: SDLCMode = args.sdlc_mode
     total_repos = len(repos)
+    analysis_config = AnalysisConfig.resolve(
+        mode=args.mode,
+        since=args.since,
+        time_window_days=args.time_window,
+        sample_size=args.sample_size,
+        cache_enabled=not args.no_analysis_cache,
+    )
 
     _print_progress(
-        f"Scheduling {total_repos} repositories with max_workers={args.max_workers}",
+        f"Scheduling {total_repos} repositories with max_workers={args.max_workers} (mode={analysis_config.mode}, strategy={analysis_config.sampling_strategy})",
         start_time,
     )
 
@@ -132,6 +178,7 @@ def _run_dataset(args) -> List[RepoResult]:
                 cache_dir,
                 sdlc_mode=sdlc_mode,
                 emit_performance=args.profile,
+                analysis_config=analysis_config,
             ): repo
             for repo in repos
         }

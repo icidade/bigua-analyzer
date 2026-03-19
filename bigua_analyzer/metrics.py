@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
+import statistics
 from typing import Any, Dict, Optional
 
+from .analysis_scope import AnalysisConfig, CommitScope, build_commit_scope
 from .ai.ai_influence import collect_repository_ai_data, compute_ai_influence_details
 from .ai.ai_metrics import compute_ai_aware_metrics
 from .gitops import git_stdout
@@ -515,13 +518,163 @@ def developer_turnover(repo_dir: Path, inactive_days: int = 365, ref: str = "HEA
 
     return inactive_count / total_contributors
 
+
+def _top_contributor_share_from_scope(scope: CommitScope) -> float:
+    counts = Counter(entry.author for entry in scope.selected_commits if entry.author)
+    total = sum(counts.values())
+    if total <= 0:
+        return 0.0
+    return max(counts.values()) / total
+
+
+def _bus_factor_from_scope(scope: CommitScope, threshold: float) -> int:
+    counts = Counter(entry.author for entry in scope.selected_commits if entry.author)
+    if not counts:
+        return 0
+
+    total = sum(counts.values())
+    if total <= 0:
+        return 0
+
+    running = 0
+    contributors = 0
+    for commit_total in sorted(counts.values(), reverse=True):
+        running += commit_total
+        contributors += 1
+        if (running / total) >= threshold:
+            return contributors
+    return contributors
+
+
+def _commit_volatility_from_scope(scope: CommitScope) -> float | None:
+    if not scope.selected_commits:
+        return None
+
+    month_counts = Counter()
+    for entry in scope.selected_commits:
+        month_counts[entry.timestamp // (30 * 86400)] += 1
+
+    values = list(month_counts.values())
+    if len(values) < 2:
+        return 0.0
+
+    mean = statistics.mean(values)
+    if mean == 0:
+        return 0.0
+
+    return statistics.stdev(values) / mean
+
+
+def _author_last_commit_timestamps(scope: CommitScope) -> dict[str, int]:
+    author_last_commit: dict[str, int] = {}
+    for entry in scope.selected_commits:
+        if not entry.author:
+            continue
+        current = author_last_commit.get(entry.author)
+        if current is None or entry.timestamp > current:
+            author_last_commit[entry.author] = entry.timestamp
+    return author_last_commit
+
+
+def _email_last_commit_timestamps(scope: CommitScope) -> dict[str, int]:
+    email_last_commit: dict[str, int] = {}
+    for entry in scope.selected_commits:
+        if not entry.email:
+            continue
+        current = email_last_commit.get(entry.email)
+        if current is None or entry.timestamp > current:
+            email_last_commit[entry.email] = entry.timestamp
+    return email_last_commit
+
+
+def _head_timestamp(repo_dir: Path, ref: str) -> int | None:
+    raw = git_stdout(repo_dir, ["show", "-s", "--format=%ct", ref]).strip()
+    if not raw:
+        return None
+    return int(raw)
+
+
+def _median_inactivity_days(scope: CommitScope, threshold: float, head_ts: int | None) -> int | None:
+    if head_ts is None:
+        return None
+
+    counts = Counter(entry.author for entry in scope.selected_commits if entry.author)
+    if not counts:
+        return None
+
+    total = sum(counts.values())
+    target = total * threshold
+    running = 0
+    selected_authors: list[str] = []
+    for author, commit_total in counts.most_common():
+        selected_authors.append(author)
+        running += commit_total
+        if running >= target:
+            break
+
+    author_last_commit = _author_last_commit_timestamps(scope)
+    inactivity_days = [
+        max(0, (head_ts - author_last_commit[author]) // 86400)
+        for author in selected_authors
+        if author in author_last_commit
+    ]
+    if not inactivity_days:
+        return None
+    return int(statistics.median(inactivity_days))
+
+
+def _gini_from_scope(scope: CommitScope) -> float | None:
+    counts = sorted(Counter(entry.author for entry in scope.selected_commits if entry.author).values())
+    if not counts:
+        return None
+    if len(counts) < 2:
+        return 0.0
+
+    total = sum(counts)
+    if total == 0:
+        return 0.0
+
+    cumulative = 0
+    for index, value in enumerate(counts, start=1):
+        cumulative += value * index
+    gini = (2 * cumulative) / (len(counts) * total) - (len(counts) + 1) / len(counts)
+    return max(0.0, min(1.0, gini))
+
+
+def _developer_turnover_from_scope(scope: CommitScope, total_contributors: int, inactive_days: int, head_ts: int | None) -> float | None:
+    if total_contributors == 0 or head_ts is None:
+        return None
+
+    threshold_ts = head_ts - (inactive_days * 86400)
+    email_last_commit = _email_last_commit_timestamps(scope)
+    if not email_last_commit:
+        return 0.0
+
+    inactive_count = sum(1 for timestamp in email_last_commit.values() if timestamp < threshold_ts)
+    return inactive_count / total_contributors
+
+
+def _recent_scope_config(base_config: AnalysisConfig) -> AnalysisConfig:
+    recent_cutoff = AnalysisConfig.resolve(mode="full", time_window_days=365).since
+    if base_config.since is not None and recent_cutoff is not None:
+        recent_cutoff = max(base_config.since, recent_cutoff)
+    return AnalysisConfig.resolve(
+        mode=base_config.mode,
+        since=recent_cutoff,
+        sample_size=base_config.sample_size,
+        cache_enabled=base_config.cache_enabled,
+    )
+
 def collect_all_metrics(
     repo_dir: Path,
     ref: Optional[str] = None,
     sdlc_mode: SDLCMode = "auto",
     profiler: Optional[PerformanceRecorder] = None,
+    analysis_config: Optional[AnalysisConfig] = None,
+    analysis_cache_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     from .gitops import get_ref_for_commands
+    analysis_config = analysis_config or AnalysisConfig.resolve()
     if profiler is not None:
         with profiler.track("resolve_ref_ms"):
             ref_str = get_ref_for_commands(repo_dir, ref)
@@ -533,10 +686,15 @@ def collect_all_metrics(
             age = repo_age_days(repo_dir, ref_str)
             commits = commit_count(repo_dir, ref_str)
             contributors = contributor_count(repo_dir, ref_str)
+            head_ts = _head_timestamp(repo_dir, ref_str)
     else:
         age = repo_age_days(repo_dir, ref_str)
         commits = commit_count(repo_dir, ref_str)
         contributors = contributor_count(repo_dir, ref_str)
+        head_ts = _head_timestamp(repo_dir, ref_str)
+
+    commit_scope = build_commit_scope(repo_dir, ref_str, analysis_config, cache_dir=analysis_cache_dir)
+    recent_scope = build_commit_scope(repo_dir, ref_str, _recent_scope_config(analysis_config), cache_dir=analysis_cache_dir)
 
     if profiler is not None:
         with profiler.track("standard_metric_calculation_ms"):
@@ -544,18 +702,18 @@ def collect_all_metrics(
                 "repo_age_days": age,
                 "commit_count": commits,
                 "contributor_count": contributors,
-                "top_contributor_share": round(top_contributor_share(repo_dir, ref_str), 6),
-                "bus_factor_50p": bus_factor_estimate(repo_dir, threshold=0.5, ref=ref_str),
-                "bus_factor_75p": bus_factor_estimate(repo_dir, threshold=0.75, ref=ref_str),
-                "commit_volatility": commit_volatility(repo_dir, ref_str),
-                "bus_factor_50p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.5, ref=ref_str),
-                "bus_factor_75p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.75, ref=ref_str),
+                "top_contributor_share": round(_top_contributor_share_from_scope(commit_scope), 6),
+                "bus_factor_50p": _bus_factor_from_scope(commit_scope, threshold=0.5),
+                "bus_factor_75p": _bus_factor_from_scope(commit_scope, threshold=0.75),
+                "commit_volatility": _commit_volatility_from_scope(commit_scope),
+                "bus_factor_50p_median_inactivity_days": _median_inactivity_days(commit_scope, threshold=0.5, head_ts=head_ts),
+                "bus_factor_75p_median_inactivity_days": _median_inactivity_days(commit_scope, threshold=0.75, head_ts=head_ts),
                 "release_cadence_days": release_cadence_days(repo_dir),
                 "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
-                "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
-                "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
-                "gini_coefficient": gini_coefficient(repo_dir, ref_str),
-                "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
+                "recent_bus_factor_50p_median_inactivity_days": _median_inactivity_days(recent_scope, 0.5, head_ts=head_ts),
+                "recent_bus_factor_75p_median_inactivity_days": _median_inactivity_days(recent_scope, 0.75, head_ts=head_ts),
+                "gini_coefficient": _gini_from_scope(commit_scope),
+                "developer_turnover": _developer_turnover_from_scope(commit_scope, contributors, 365, head_ts),
             }
             metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
     else:
@@ -563,20 +721,35 @@ def collect_all_metrics(
             "repo_age_days": age,
             "commit_count": commits,
             "contributor_count": contributors,
-            "top_contributor_share": round(top_contributor_share(repo_dir, ref_str), 6),
-            "bus_factor_50p": bus_factor_estimate(repo_dir, threshold=0.5, ref=ref_str),
-            "bus_factor_75p": bus_factor_estimate(repo_dir, threshold=0.75, ref=ref_str),
-            "commit_volatility": commit_volatility(repo_dir, ref_str),
-            "bus_factor_50p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.5, ref=ref_str),
-            "bus_factor_75p_median_inactivity_days": bus_factor_set_median_inactivity_days(repo_dir, threshold=0.75, ref=ref_str),
+            "top_contributor_share": round(_top_contributor_share_from_scope(commit_scope), 6),
+            "bus_factor_50p": _bus_factor_from_scope(commit_scope, threshold=0.5),
+            "bus_factor_75p": _bus_factor_from_scope(commit_scope, threshold=0.75),
+            "commit_volatility": _commit_volatility_from_scope(commit_scope),
+            "bus_factor_50p_median_inactivity_days": _median_inactivity_days(commit_scope, threshold=0.5, head_ts=head_ts),
+            "bus_factor_75p_median_inactivity_days": _median_inactivity_days(commit_scope, threshold=0.75, head_ts=head_ts),
             "release_cadence_days": release_cadence_days(repo_dir),
             "recent_release_cadence_days": recent_release_cadence_days(repo_dir, 365),
-            "recent_bus_factor_50p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.5, 365, ref_str),
-            "recent_bus_factor_75p_median_inactivity_days": recent_bus_factor_set_median_inactivity_days(repo_dir, 0.75, 365, ref_str),
-            "gini_coefficient": gini_coefficient(repo_dir, ref_str),
-            "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
+            "recent_bus_factor_50p_median_inactivity_days": _median_inactivity_days(recent_scope, 0.5, head_ts=head_ts),
+            "recent_bus_factor_75p_median_inactivity_days": _median_inactivity_days(recent_scope, 0.75, head_ts=head_ts),
+            "gini_coefficient": _gini_from_scope(commit_scope),
+            "developer_turnover": _developer_turnover_from_scope(commit_scope, contributors, 365, head_ts),
         }
         metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
+
+    metrics.update(
+        {
+            "analysis_mode": analysis_config.mode,
+            "analysis_since": analysis_config.since,
+            "analysis_time_window_days": analysis_config.time_window_days,
+            "analysis_sample_size": analysis_config.sample_size,
+            "analysis_sampling_strategy": commit_scope.sampling_strategy,
+            "analysis_cache_enabled": analysis_config.cache_enabled,
+            "analysis_cache_hit": commit_scope.cache_hit,
+            "commit_scope_total_commits": commit_scope.total_commits,
+            "commit_scope_analyzed_commits": commit_scope.analyzed_commits,
+            "commit_scope_is_approximate": commit_scope.analyzed_commits < commit_scope.total_commits,
+        }
+    )
 
     if sdlc_mode == "human":
         # Skip expensive full-history AI data collection when mode is explicitly human.
@@ -585,11 +758,20 @@ def collect_all_metrics(
             "file_paths": [],
         }
     else:
-        repo_data = collect_repository_ai_data(repo_dir, ref_str, profiler=profiler)
+        repo_data = collect_repository_ai_data(
+            repo_dir,
+            ref_str,
+            profiler=profiler,
+            analysis_config=analysis_config,
+            cache_dir=analysis_cache_dir,
+        )
 
     repo_data["repo_age_days"] = age
     repo_data["commit_count"] = commits
     repo_data["contributor_count"] = contributors
+    repo_data["commit_scope_total_commits"] = commit_scope.total_commits
+    repo_data["commit_scope_analyzed_commits"] = commit_scope.analyzed_commits
+    repo_data["analysis_mode"] = analysis_config.mode
     ai_details = compute_ai_influence_details(repo_data, profiler=profiler)
     effective_sdlc_mode = resolve_effective_sdlc_mode(sdlc_mode, ai_details.ai_influence_score)
 

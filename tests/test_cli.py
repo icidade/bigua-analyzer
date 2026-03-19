@@ -30,6 +30,24 @@ class CLISdlcModeTests(unittest.TestCase):
         ])
         self.assertTrue(args.profile)
 
+    def test_analyze_accepts_fast_scope_arguments(self) -> None:
+        parser = _build_parser()
+        args = parser.parse_args([
+            "analyze",
+            "https://github.com/example/repo",
+            "--mode",
+            "fast",
+            "--time-window",
+            "180",
+            "--sample-size",
+            "64",
+            "--no-analysis-cache",
+        ])
+        self.assertEqual(args.mode, "fast")
+        self.assertEqual(args.time_window, 180)
+        self.assertEqual(args.sample_size, 64)
+        self.assertTrue(args.no_analysis_cache)
+
 
 if __name__ == "__main__":
     unittest.main()

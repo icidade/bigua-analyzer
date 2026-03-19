@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from bigua_analyzer.analysis_scope import AnalysisConfig
 from bigua_analyzer.metrics import collect_all_metrics
 from bigua_analyzer.perf import PerformanceRecorder
 
@@ -88,6 +89,46 @@ class MetricsIntegrationTests(unittest.TestCase):
         self.assertIn("file_tree_read_ms", timings)
         self.assertIn("temporal_aggregation_ms", timings)
         self.assertIn("ai_inference_ms", timings)
+
+    def test_fast_mode_exposes_scope_transparency(self) -> None:
+        repo_dir = self._create_repo()
+
+        metrics = collect_all_metrics(
+            repo_dir,
+            "main",
+            sdlc_mode="auto",
+            analysis_config=AnalysisConfig.resolve(mode="fast", sample_size=1),
+            analysis_cache_dir=repo_dir / ".analysis-cache",
+        )
+
+        self.assertEqual(metrics["analysis_mode"], "fast")
+        self.assertEqual(metrics["analysis_sampling_strategy"], "time-bucket-sample")
+        self.assertEqual(metrics["commit_scope_total_commits"], 2)
+        self.assertEqual(metrics["commit_scope_analyzed_commits"], 1)
+        self.assertTrue(metrics["commit_scope_is_approximate"])
+
+    def test_analysis_cache_is_reused_on_second_run(self) -> None:
+        repo_dir = self._create_repo()
+        cache_dir = repo_dir / ".analysis-cache"
+        config = AnalysisConfig.resolve(mode="fast", sample_size=1)
+
+        first = collect_all_metrics(
+            repo_dir,
+            "main",
+            sdlc_mode="auto",
+            analysis_config=config,
+            analysis_cache_dir=cache_dir,
+        )
+        second = collect_all_metrics(
+            repo_dir,
+            "main",
+            sdlc_mode="auto",
+            analysis_config=config,
+            analysis_cache_dir=cache_dir,
+        )
+
+        self.assertFalse(first["analysis_cache_hit"])
+        self.assertTrue(second["analysis_cache_hit"])
 
 
 if __name__ == "__main__":

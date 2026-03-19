@@ -2,6 +2,18 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.4.3
+
+Release focus: fast mode and scalable analysis for very large repositories.
+
+- Added `--mode full|fast` while keeping `full` as the default behavior for backward compatibility.
+- Added `--since`, `--time-window`, and `--sample-size` so large repositories can be analyzed with explicit temporal scoping and bounded commit sampling.
+- Added time-bucketed commit sampling in fast mode to preserve chronological coverage while reducing expensive history scans.
+- Added a persistent analysis cache for scoped commit listings and AI scan inputs, plus a `--no-analysis-cache` escape hatch.
+- Reduced the cost of history-derived metrics by reusing scoped commit metadata across bus factor, volatility, turnover, and contributor concentration calculations.
+- Added explicit output transparency fields including `analysis_mode`, `analysis_sampling_strategy`, `commit_scope_total_commits`, and `commit_scope_analyzed_commits`.
+- Added tests covering fast-mode CLI parsing, scoped output metadata, and analysis cache reuse.
+
 ## v0.4.2
 
 Release focus: performance observability and benchmarking support for large repositories.

@@ -10,6 +10,8 @@
 
 0.4.2   Performance observability + worker benchmark instrumentation
 
+0.4.3   Fast mode + scalable analysis for very large repositories
+
 0.5.0   Visualization / report improvements 
 
 0.6.0   Ingestion from manifest parsers / lockfile parsers

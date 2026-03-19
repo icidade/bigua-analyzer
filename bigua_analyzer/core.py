@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
+from .analysis_scope import AnalysisConfig
 from .gitops import GitError, checkout_ref, ensure_cloned
 from .metrics import collect_all_metrics
 from .models import RepoResult, RepoSpec
@@ -19,11 +20,13 @@ def analyze_repo(
     cache_dir: Path,
     sdlc_mode: SDLCMode = "auto",
     emit_performance: bool = False,
+    analysis_config: AnalysisConfig | None = None,
 ) -> RepoResult:
     """
     Core: analyze exactly ONE repo.
     CLI/app decides whether it's single-run or batch dataset.
     """
+    analysis_config = analysis_config or AnalysisConfig.resolve()
     profiler = PerformanceRecorder() if emit_performance else None
     try:
         if profiler is not None:
@@ -41,6 +44,8 @@ def analyze_repo(
                         repo.ref,
                         sdlc_mode=sdlc_mode,
                         profiler=profiler,
+                        analysis_config=analysis_config,
+                        analysis_cache_dir=cache_dir / "analysis",
                     )
             metrics["performance"] = profiler.snapshot_ms()
         else:
@@ -53,6 +58,8 @@ def analyze_repo(
                 repo.ref,
                 sdlc_mode=sdlc_mode,
                 profiler=None,
+                analysis_config=analysis_config,
+                analysis_cache_dir=cache_dir / "analysis",
             )
         return RepoResult(repo=repo, ok=True, metrics=metrics)
     except (GitError, Exception) as e:
