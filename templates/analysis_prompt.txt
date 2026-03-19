@@ -4,6 +4,10 @@ Repository: {repo_name}
 URL: {repo_url}
 Analysis date: {analysis_date}
 
+SDLC context:
+
+{sdlc_context_block}
+
 Metrics:
 
 {metrics_block}

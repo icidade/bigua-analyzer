@@ -6,6 +6,8 @@ Orchestrate the full pipeline:
 from __future__ import annotations
 
 import re
+import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -14,6 +16,37 @@ import pandas as pd
 from .prompt_builder import build_prompt, SYSTEM_PROMPT
 from .llm_client import call_llm
 from .html_renderer import render_html
+
+
+def _format_elapsed(start_time: float) -> str:
+    elapsed_seconds = max(0, int(time.time() - start_time))
+    return _format_duration(elapsed_seconds)
+
+
+def _format_duration(total_seconds: int) -> str:
+    total_seconds = max(0, int(total_seconds))
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {seconds}s"
+    if minutes:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _estimate_eta(start_time: float, completed: int, total: int) -> str | None:
+    if completed <= 0 or total <= completed:
+        return None
+
+    elapsed_seconds = max(1, int(time.time() - start_time))
+    average_seconds_per_item = elapsed_seconds / completed
+    remaining_seconds = int(round((total - completed) * average_seconds_per_item))
+    return _format_duration(remaining_seconds)
+
+
+def _print_step(step: int, total: int, message: str, start_time: float) -> None:
+    elapsed = _format_elapsed(start_time)
+    print(f"[progress] Step {step}/{total}: {message} (elapsed: {elapsed})", file=sys.stderr, flush=True)
 
 
 def _row_to_metrics(row: "pd.Series[Any]") -> Dict[str, Any]:  # type: ignore[type-arg]
@@ -127,6 +160,8 @@ def generate_report(
     str
         The raw Markdown text returned by the LLM.
     """
+    start_time = time.time()
+    _print_step(1, 4, f"Loading metrics from {csv_path}", start_time)
     df = pd.read_csv(csv_path)
 
     if df.empty:
@@ -146,6 +181,7 @@ def generate_report(
             "Specify --repo-url to select one repository."
         )
 
+    _print_step(2, 4, "Building AI analysis prompt", start_time)
     markdown_report = _generate_markdown_for_row(
         row,
         provider=provider,
@@ -157,11 +193,17 @@ def generate_report(
         max_tokens=max_tokens,
     )
 
+    _print_step(3, 4, "Writing Markdown report", start_time)
     _write_report_outputs(
         markdown_report,
         out_md=out_md,
         out_html=out_html,
     )
+
+    if out_html is not None:
+        _print_step(4, 4, f"Rendered HTML report to {out_html}", start_time)
+    else:
+        _print_step(4, 4, "Report generation completed", start_time)
 
     return markdown_report
 
@@ -180,6 +222,8 @@ def generate_reports(
     max_tokens: int = 4096,
 ) -> list[Path]:
     """Generate one Markdown report per CSV row and optional paired HTML files."""
+    start_time = time.time()
+    _print_step(1, 2, f"Loading report batch from {csv_path}", start_time)
     df = pd.read_csv(csv_path)
 
     if df.empty:
@@ -188,7 +232,18 @@ def generate_reports(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     written_reports: list[Path] = []
-    for _, row in df.iterrows():
+    total_rows = len(df)
+    _print_step(2, 2, f"Generating {total_rows} report(s)", start_time)
+
+    for index, (_, row) in enumerate(df.iterrows(), start=1):
+        slug = _repo_slug(row)
+        eta = _estimate_eta(start_time, index - 1, total_rows)
+        eta_suffix = f", ETA: {eta}" if eta is not None else ""
+        print(
+            f"[progress] Report {index}/{total_rows}: generating analysis for {slug} (elapsed: {_format_elapsed(start_time)}{eta_suffix})",
+            file=sys.stderr,
+            flush=True,
+        )
         markdown_report = _generate_markdown_for_row(
             row,
             provider=provider,
@@ -200,7 +255,6 @@ def generate_reports(
             max_tokens=max_tokens,
         )
 
-        slug = _repo_slug(row)
         out_md = out_dir / f"{slug}_analysis_report.md"
         out_html = out_dir / f"{slug}_analysis_report.html" if render_html_output else None
 
@@ -210,5 +264,12 @@ def generate_reports(
             out_html=out_html,
         )
         written_reports.append(out_md)
+        eta = _estimate_eta(start_time, index, total_rows)
+        eta_suffix = f", ETA: {eta}" if eta is not None else ""
+        print(
+            f"[progress] Report {index}/{total_rows}: finished {slug} (elapsed: {_format_elapsed(start_time)}{eta_suffix})",
+            file=sys.stderr,
+            flush=True,
+        )
 
     return written_reports

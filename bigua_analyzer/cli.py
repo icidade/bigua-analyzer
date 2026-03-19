@@ -6,6 +6,7 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 import argparse
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
@@ -13,6 +14,7 @@ from typing import List
 from .core import analyze_repo
 from .io_utils import read_dataset, write_csv, write_jsonl
 from .models import RepoResult, RepoSpec
+from .sdlc import SDLCMode
 
 
 _EXTERNAL_LLM_WARNING = (
@@ -21,6 +23,50 @@ _EXTERNAL_LLM_WARNING = (
     "Avoid using analyze-report with private or sensitive repositories unless "
     "your org policy explicitly allows it."
 )
+
+
+def _format_elapsed(start_time: float) -> str:
+    elapsed_seconds = max(0, int(time.time() - start_time))
+    return _format_duration(elapsed_seconds)
+
+
+def _format_duration(total_seconds: int) -> str:
+    total_seconds = max(0, int(total_seconds))
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {seconds}s"
+    if minutes:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _estimate_eta(start_time: float, completed: int, total: int) -> str | None:
+    if completed <= 0 or total <= completed:
+        return None
+
+    elapsed_seconds = max(1, int(time.time() - start_time))
+    average_seconds_per_item = elapsed_seconds / completed
+    remaining_seconds = int(round((total - completed) * average_seconds_per_item))
+    return _format_duration(remaining_seconds)
+
+
+def _print_progress(
+    message: str,
+    start_time: float | None = None,
+    completed: int | None = None,
+    total: int | None = None,
+) -> None:
+    suffix_parts: list[str] = []
+    if start_time is not None:
+        suffix_parts.append(f"elapsed: {_format_elapsed(start_time)}")
+    if start_time is not None and completed is not None and total is not None:
+        eta = _estimate_eta(start_time, completed, total)
+        if eta is not None:
+            suffix_parts.append(f"ETA: {eta}")
+
+    suffix = f" ({', '.join(suffix_parts)})" if suffix_parts else ""
+    print(f"[progress] {message}{suffix}", file=sys.stderr, flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -41,27 +87,55 @@ def _add_analyze_parser(subparsers) -> None:
     p.add_argument("--format", choices=["jsonl", "csv", "both"], default="both", help="Output format.")
     p.add_argument("--max-repos", type=int, default=None, help="Limit number of repos from dataset (useful for testing).")
     p.add_argument("--max-workers", type=int, default=4, help="Maximum number of parallel threads for dataset processing.")
+    p.add_argument(
+        "--sdlc-mode",
+        choices=["auto", "human", "hybrid", "ai"],
+        default="auto",
+        help="Analysis mode: auto, human, hybrid, or ai (default: auto).",
+    )
     p.set_defaults(func=_cmd_analyze)
 
 
 def _run_single(args) -> List[RepoResult]:
     spec = RepoSpec(url=args.repo, ref=args.ref)
-    r = analyze_repo(spec, cache_dir=Path(args.cache_dir))
+    r = analyze_repo(spec, cache_dir=Path(args.cache_dir), sdlc_mode=args.sdlc_mode)
     return [r]
 
 
 def _run_dataset(args) -> List[RepoResult]:
+    start_time = time.time()
     repos = read_dataset(Path(args.dataset))
     if args.max_repos is not None:
         repos = repos[: max(0, args.max_repos)]
 
     results: List[RepoResult] = []
     cache_dir = Path(args.cache_dir)
+    sdlc_mode: SDLCMode = args.sdlc_mode
+    total_repos = len(repos)
+
+    _print_progress(
+        f"Scheduling {total_repos} repositories with max_workers={args.max_workers}",
+        start_time,
+    )
 
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-        futures = {executor.submit(analyze_repo, repo, cache_dir): repo for repo in repos}
+        futures = {
+            executor.submit(analyze_repo, repo, cache_dir, sdlc_mode=sdlc_mode): repo
+            for repo in repos
+        }
+        completed = 0
         for future in as_completed(futures):
-            results.append(future.result())
+            result = future.result()
+            results.append(result)
+            completed += 1
+            repo_label = result.repo.repo_id or result.repo.url
+            status = "ok" if result.ok else "failed"
+            _print_progress(
+                f"Repository {completed}/{total_repos} completed: {repo_label} [{status}]",
+                start_time,
+                completed,
+                total_repos,
+            )
 
     return results
 

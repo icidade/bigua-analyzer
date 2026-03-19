@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .ai.ai_influence import collect_repository_ai_data, compute_ai_influence_details
+from .ai.ai_metrics import compute_ai_aware_metrics
 from .gitops import git_stdout
+from .sdlc import SDLCMode, resolve_effective_sdlc_mode
 
 
 def repo_age_days(repo_dir: Path, ref: str = "HEAD") -> int | None:
@@ -511,7 +514,7 @@ def developer_turnover(repo_dir: Path, inactive_days: int = 365, ref: str = "HEA
 
     return inactive_count / total_contributors
 
-def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None) -> Dict[str, Any]:
+def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None, sdlc_mode: SDLCMode = "auto") -> Dict[str, Any]:
     from .gitops import get_ref_for_commands
     ref_str = get_ref_for_commands(repo_dir, ref)
     
@@ -537,4 +540,45 @@ def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None) -> Dict[str, 
         "developer_turnover": developer_turnover(repo_dir, 365, ref_str),
     }
     metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
+
+    repo_data = collect_repository_ai_data(repo_dir, ref_str)
+    repo_data["repo_age_days"] = age
+    repo_data["commit_count"] = commits
+    repo_data["contributor_count"] = contributors
+    ai_details = compute_ai_influence_details(repo_data)
+    effective_sdlc_mode = resolve_effective_sdlc_mode(sdlc_mode, ai_details.ai_influence_score)
+
+    metrics.update(
+        {
+            "sdlc_mode": sdlc_mode,
+            "effective_sdlc_mode": effective_sdlc_mode,
+            "ai_influence_score": round(ai_details.ai_influence_score, 6),
+            "ai_influence_confidence": round(ai_details.ai_influence_confidence, 6),
+            "ai_weighted_base_score": round(ai_details.weighted_base_score, 6),
+            "ai_temporal_adoption_prior": round(ai_details.temporal_adoption_prior, 6),
+            "ai_temporal_anomaly_weight": round(ai_details.temporal_anomaly_weight, 6),
+            "ai_dominant_activity_period": ai_details.dominant_activity_period,
+            "ai_historical_constraint_applied": ai_details.historical_constraint_applied,
+            "ai_legacy_variance_protection_applied": ai_details.legacy_variance_protection_applied,
+            "ai_influence_rationale": ai_details.ai_influence_rationale,
+            "ai_h1_textual_markers": None if ai_details.ai_h1_textual_markers is None else round(ai_details.ai_h1_textual_markers, 6),
+            "ai_h2_explicit_attribution": None if ai_details.ai_h2_explicit_attribution is None else round(ai_details.ai_h2_explicit_attribution, 6),
+            "ai_h3_temporal_prior": round(ai_details.ai_h3_temporal_prior, 6),
+            "ai_h4_burstiness": None if ai_details.ai_h4_burstiness is None else round(ai_details.ai_h4_burstiness, 6),
+            "ai_h5_style_shift": None if ai_details.ai_h5_style_shift is None else round(ai_details.ai_h5_style_shift, 6),
+            "ai_h6_large_low_discussion": None if ai_details.ai_h6_large_low_discussion is None else round(ai_details.ai_h6_large_low_discussion, 6),
+            "ai_h7_output_asymmetry": None if ai_details.ai_h7_output_asymmetry is None else round(ai_details.ai_h7_output_asymmetry, 6),
+            "ai_h8_tooling_footprint": None if ai_details.ai_h8_tooling_footprint is None else round(ai_details.ai_h8_tooling_footprint, 6),
+            "ai_h9_generated_text_pattern": None if ai_details.ai_h9_generated_text_pattern is None else round(ai_details.ai_h9_generated_text_pattern, 6),
+            "ai_commit_pattern_score": None if ai_details.commit_pattern_score is None else round(ai_details.commit_pattern_score, 6),
+            "ai_temporal_anomaly_score": None if ai_details.temporal_anomaly_score is None else round(ai_details.temporal_anomaly_score, 6),
+            "ai_temporal_anomaly_score_raw": None if ai_details.temporal_anomaly_score_raw is None else round(ai_details.temporal_anomaly_score_raw, 6),
+            "ai_style_uniformity_score": None if ai_details.style_uniformity_score is None else round(ai_details.style_uniformity_score, 6),
+            "ai_metadata_signal_score": None if ai_details.metadata_signal_score is None else round(ai_details.metadata_signal_score, 6),
+        }
+    )
+
+    if effective_sdlc_mode in {"hybrid", "ai"}:
+        metrics["ai_metrics"] = compute_ai_aware_metrics(metrics, ai_details, effective_sdlc_mode)
+
     return metrics

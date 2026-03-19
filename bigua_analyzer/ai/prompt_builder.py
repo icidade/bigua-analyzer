@@ -37,6 +37,8 @@ def _derive_signals(metrics: Dict[str, Any]) -> Dict[str, str]:
             pass
 
     bus_factor = metrics.get("bus_factor")
+    if bus_factor is None:
+        bus_factor = metrics.get("bus_factor_50p")
     if bus_factor is not None:
         try:
             signals["bus_factor_risk"] = (
@@ -66,6 +68,32 @@ def _derive_signals(metrics: Dict[str, Any]) -> Dict[str, str]:
     return signals
 
 
+def _build_sdlc_context(metrics: Dict[str, Any]) -> str:
+    selected_mode = metrics.get("sdlc_mode", "auto")
+    effective_mode = metrics.get("effective_sdlc_mode", selected_mode)
+    ai_score = metrics.get("ai_influence_score")
+
+    lines = [
+        f"This project is analyzed under a {effective_mode} development model.",
+        f"Selected SDLC mode: {selected_mode}",
+        f"Effective SDLC mode: {effective_mode}",
+    ]
+
+    if ai_score is not None:
+        lines.append(f"AI Influence Score: {ai_score}")
+
+    lines.extend(
+        [
+            "Interpret metrics accordingly:",
+            "- In AI-assisted contexts, contribution patterns may not reflect true authorship",
+            "- Consider dependency on AI as a potential risk factor",
+            "- In hybrid contexts, interpret human and AI-aware signals together",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
 def build_prompt(
     repo_name: str,
     repo_url: str,
@@ -87,6 +115,7 @@ def build_prompt(
         repo_name=repo_name,
         repo_url=repo_url,
         analysis_date=datetime.now(timezone.utc).isoformat(),
+        sdlc_context_block=_build_sdlc_context(metrics_dict),
         metrics_block=metrics_block,
         signals_block=signals_block,
     )
