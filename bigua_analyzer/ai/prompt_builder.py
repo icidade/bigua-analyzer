@@ -74,7 +74,7 @@ def _build_sdlc_context(metrics: Dict[str, Any]) -> str:
     ai_score = metrics.get("ai_influence_score")
 
     lines = [
-        f"This project is analyzed under a {effective_mode} development model.",
+        f"This project is analyzed under the {effective_mode} SDLC mode.",
         f"Selected SDLC mode: {selected_mode}",
         f"Effective SDLC mode: {effective_mode}",
     ]
