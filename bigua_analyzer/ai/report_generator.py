@@ -16,36 +16,11 @@ import pandas as pd
 from .prompt_builder import build_prompt, SYSTEM_PROMPT
 from .llm_client import call_llm
 from .html_renderer import render_html
-
-
-def _format_elapsed(start_time: float) -> str:
-    elapsed_seconds = max(0, int(time.time() - start_time))
-    return _format_duration(elapsed_seconds)
-
-
-def _format_duration(total_seconds: int) -> str:
-    total_seconds = max(0, int(total_seconds))
-    minutes, seconds = divmod(total_seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    if hours:
-        return f"{hours}h {minutes}m {seconds}s"
-    if minutes:
-        return f"{minutes}m {seconds}s"
-    return f"{seconds}s"
-
-
-def _estimate_eta(start_time: float, completed: int, total: int) -> str | None:
-    if completed <= 0 or total <= completed:
-        return None
-
-    elapsed_seconds = max(1, int(time.time() - start_time))
-    average_seconds_per_item = elapsed_seconds / completed
-    remaining_seconds = int(round((total - completed) * average_seconds_per_item))
-    return _format_duration(remaining_seconds)
+from ..time_utils import estimate_eta, format_elapsed
 
 
 def _print_step(step: int, total: int, message: str, start_time: float) -> None:
-    elapsed = _format_elapsed(start_time)
+    elapsed = format_elapsed(start_time)
     print(f"[progress] Step {step}/{total}: {message} (elapsed: {elapsed})", file=sys.stderr, flush=True)
 
 
@@ -237,10 +212,10 @@ def generate_reports(
 
     for index, (_, row) in enumerate(df.iterrows(), start=1):
         slug = _repo_slug(row)
-        eta = _estimate_eta(start_time, index - 1, total_rows)
+        eta = estimate_eta(start_time, index - 1, total_rows)
         eta_suffix = f", ETA: {eta}" if eta is not None else ""
         print(
-            f"[progress] Report {index}/{total_rows}: generating analysis for {slug} (elapsed: {_format_elapsed(start_time)}{eta_suffix})",
+            f"[progress] Report {index}/{total_rows}: generating analysis for {slug} (elapsed: {format_elapsed(start_time)}{eta_suffix})",
             file=sys.stderr,
             flush=True,
         )

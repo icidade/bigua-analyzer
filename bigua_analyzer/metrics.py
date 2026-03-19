@@ -541,7 +541,15 @@ def collect_all_metrics(repo_dir: Path, ref: Optional[str] = None, sdlc_mode: SD
     }
     metrics.update({f"has_{k.replace('.', '_').replace('/', '_')}": v for k, v in security_files_presence(repo_dir, ref_str).items()})
 
-    repo_data = collect_repository_ai_data(repo_dir, ref_str)
+    if sdlc_mode == "human":
+        # Skip expensive full-history AI data collection when mode is explicitly human.
+        repo_data = {
+            "commits": [],
+            "file_paths": [],
+        }
+    else:
+        repo_data = collect_repository_ai_data(repo_dir, ref_str)
+
     repo_data["repo_age_days"] = age
     repo_data["commit_count"] = commits
     repo_data["contributor_count"] = contributors

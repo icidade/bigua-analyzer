@@ -6,6 +6,8 @@
 
 0.4.0   Hybrid SDLC analysis (human + AI-assisted development) 
 
+0.4.1   Patch release: runtime and maintainability refinements for v0.4.0
+
 0.5.0   Visualization / report improvements 
 
 0.6.0   Ingestion from manifest parsers / lockfile parsers

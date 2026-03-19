@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from bigua_analyzer.metrics import collect_all_metrics
 
@@ -39,6 +40,12 @@ class MetricsIntegrationTests(unittest.TestCase):
         self.assertEqual(metrics["effective_sdlc_mode"], "human")
         self.assertIn("ai_influence_score", metrics)
         self.assertNotIn("ai_metrics", metrics)
+
+    def test_human_mode_skips_expensive_ai_repository_scan(self) -> None:
+        repo_dir = self._create_repo()
+        with patch("bigua_analyzer.metrics.collect_repository_ai_data") as mock_collect:
+            collect_all_metrics(repo_dir, "main", sdlc_mode="human")
+            mock_collect.assert_not_called()
 
     def test_hybrid_mode_adds_ai_metrics(self) -> None:
         repo_dir = self._create_repo()

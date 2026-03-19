@@ -15,6 +15,7 @@ from .core import analyze_repo
 from .io_utils import read_dataset, write_csv, write_jsonl
 from .models import RepoResult, RepoSpec
 from .sdlc import SDLCMode
+from .time_utils import estimate_eta, format_elapsed
 
 
 _EXTERNAL_LLM_WARNING = (
@@ -25,32 +26,6 @@ _EXTERNAL_LLM_WARNING = (
 )
 
 
-def _format_elapsed(start_time: float) -> str:
-    elapsed_seconds = max(0, int(time.time() - start_time))
-    return _format_duration(elapsed_seconds)
-
-
-def _format_duration(total_seconds: int) -> str:
-    total_seconds = max(0, int(total_seconds))
-    minutes, seconds = divmod(total_seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    if hours:
-        return f"{hours}h {minutes}m {seconds}s"
-    if minutes:
-        return f"{minutes}m {seconds}s"
-    return f"{seconds}s"
-
-
-def _estimate_eta(start_time: float, completed: int, total: int) -> str | None:
-    if completed <= 0 or total <= completed:
-        return None
-
-    elapsed_seconds = max(1, int(time.time() - start_time))
-    average_seconds_per_item = elapsed_seconds / completed
-    remaining_seconds = int(round((total - completed) * average_seconds_per_item))
-    return _format_duration(remaining_seconds)
-
-
 def _print_progress(
     message: str,
     start_time: float | None = None,
@@ -59,9 +34,9 @@ def _print_progress(
 ) -> None:
     suffix_parts: list[str] = []
     if start_time is not None:
-        suffix_parts.append(f"elapsed: {_format_elapsed(start_time)}")
+        suffix_parts.append(f"elapsed: {format_elapsed(start_time)}")
     if start_time is not None and completed is not None and total is not None:
-        eta = _estimate_eta(start_time, completed, total)
+        eta = estimate_eta(start_time, completed, total)
         if eta is not None:
             suffix_parts.append(f"ETA: {eta}")
 

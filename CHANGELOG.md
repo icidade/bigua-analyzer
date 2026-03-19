@@ -2,6 +2,16 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.4.1
+
+Release focus: patch improvements for maintainability, typing safety, and runtime behavior.
+
+- Removed direct progress printing from core repository analysis to keep programmatic usage clean and avoid noisy interleaved output in multi-threaded dataset runs.
+- Reduced worst-case runtime for explicit `human` mode by skipping expensive repository-wide AI data scans while preserving AI influence output fields.
+- Added a dedicated `EffectiveSDLCMode` type alias and narrowed return typing in SDLC mode resolution to avoid static type ambiguity.
+- Centralized duration/elapsed/ETA formatting in shared utilities to remove duplicated logic across CLI and report generation paths.
+- Added integration test coverage to ensure `human` mode does not trigger the expensive AI repository scan.
+
 ## v0.4.0
 
 Release focus: hybrid SDLC analysis, AI-aware repository metrics, and AI Influence Score refinement (v1.2/v1.3 calibration).
