@@ -25,6 +25,8 @@ The name reflects this idea: observing the ecosystem and extracting insights tha
 
 The analyzer focuses exclusively on publicly available repository metadata and commit history.
 
+For the full metric catalogue and the traffic-light signal quality layer (`green/yellow/orange/red`), see [bigua_project_docs/metrics.md](bigua_project_docs/metrics.md#signal-quality-interpretation-layer-traffic-light).
+
 ### Repository activity
 
 - Total number of commits
@@ -119,9 +121,25 @@ bigua-analyzer analyze --dataset repos.csv --out analysis-results
 - Specify a branch/tag/SHA: `--ref main`
 - Limit number of repos: `--max-repos 10`
 - Parallel processing: `--max-workers 8` (default 4)
+- Analysis depth: `--mode full|fast` (default `full`)
+- Scope history by date: `--since YYYY-MM-DD`
+- Scope history by relative window: `--time-window 365`
+- Limit analyzed commits inside the selected scope: `--sample-size 240`
+- Disable persistent scope cache: `--no-analysis-cache`
 - SDLC analysis mode: `--sdlc-mode auto|human|hybrid|ai` (default `auto`)
 - Output format: `--format csv` or `--format jsonl` or `--format both` (default)
 - Custom cache directory: `--cache-dir /path/to/cache`
+
+#### Fast mode
+
+`--mode fast` keeps the default output schema but scopes the expensive history-based calculations to a recent window and optional sampled commit subset.
+
+- Default fast-mode window: last 365 days
+- Default fast-mode sample size: 240 commits
+- Sampling strategy: time-bucketed commit sampling to preserve chronological coverage
+- Persistent cache: scoped commit listings and AI scan inputs are cached under the analysis cache directory inside `--cache-dir`
+
+Use `full` when you need maximum fidelity over the entire repository history. Use `fast` when you need a materially quicker approximation on very large repositories.
 
 #### SDLC modes
 
@@ -165,6 +183,21 @@ The AI Influence Score is repository-level and is based on normalized heuristics
 5. **Auto-detect effective SDLC mode:**
     ```bash
     bigua-analyzer analyze https://github.com/org/repo --sdlc-mode auto --out auto-results
+    ```
+
+6. **Fast analysis for a very large repository:**
+    ```bash
+    bigua-analyzer analyze https://github.com/hashicorp/terraform --mode fast --out terraform-fast
+    ```
+
+7. **Fast dataset run with an explicit time scope and sample cap:**
+    ```bash
+    bigua-analyzer analyze --dataset all_repos.csv --mode fast --time-window 180 --sample-size 120 --max-workers 2 --out fast-results
+    ```
+
+8. **Full analysis constrained to recent history only:**
+    ```bash
+    bigua-analyzer analyze https://github.com/org/repo --mode full --since 2024-01-01 --out scoped-full-results
     ```
 
 ---
@@ -334,6 +367,16 @@ When SDLC-aware analysis is enabled, outputs also include additive fields such a
 
 - `sdlc_mode`
 - `effective_sdlc_mode`
+- `analysis_mode`
+- `analysis_since`
+- `analysis_time_window_days`
+- `analysis_sample_size`
+- `analysis_sampling_strategy`
+- `analysis_cache_enabled`
+- `analysis_cache_hit`
+- `commit_scope_total_commits`
+- `commit_scope_analyzed_commits`
+- `commit_scope_is_approximate`
 - `ai_influence_score`
 - `ai_weighted_base_score`
 - `ai_temporal_adoption_prior`
@@ -344,6 +387,8 @@ When SDLC-aware analysis is enabled, outputs also include additive fields such a
 - `ai_style_uniformity_score`
 - `ai_metadata_signal_score`
 - `ai_influence_rationale`
+
+The `commit_scope_*` and `analysis_*` fields make scoped runs explicit, so downstream analysis can distinguish full-history metrics from fast approximations.
 
 In JSONL output, AI-aware metrics are preserved under `metrics.ai_metrics`.
 In CSV output, nested AI-aware metrics are flattened into columns such as `ai_metrics_aidr`, `ai_metrics_cbf`, `ai_metrics_amr`, `ai_metrics_aich`, and `ai_metrics_aci`.

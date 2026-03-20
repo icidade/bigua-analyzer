@@ -8,6 +8,7 @@ import statistics
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
+from ..analysis_scope import AnalysisConfig, build_commit_scope, load_analysis_cache, resolve_ref_oid, store_analysis_cache
 from ..gitops import git_stdout
 from ..perf import PerformanceRecorder
 from ..sdlc import clamp01
@@ -85,18 +86,32 @@ def _parse_commit_log(
     repo_dir: Path,
     ref: str = "HEAD",
     profiler: Optional[PerformanceRecorder] = None,
+    commit_hashes: Optional[list[str]] = None,
+    since: str | None = None,
 ) -> list[dict[str, Any]]:
+    command: list[str]
+    if commit_hashes:
+        command = [
+            "show",
+            "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>",
+            "--numstat",
+            *commit_hashes,
+        ]
+    else:
+        command = [
+            "log",
+            "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>",
+            "--numstat",
+        ]
+        if since is not None:
+            command.append(f"--since={since}")
+        command.append(ref)
+
     if profiler is not None:
         with profiler.track("commit_history_read_ms"):
-            out = git_stdout(
-                repo_dir,
-                ["log", "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>", "--numstat", ref],
-            ).strip()
+            out = git_stdout(repo_dir, command).strip()
     else:
-        out = git_stdout(
-            repo_dir,
-            ["log", "--format=__BIGUA_COMMIT__%n%s%n%ct%n%aN <%aE>", "--numstat", ref],
-        ).strip()
+        out = git_stdout(repo_dir, command).strip()
     if not out:
         return []
 
@@ -210,8 +225,32 @@ def collect_repository_ai_data(
     repo_dir: Path,
     ref: str = "HEAD",
     profiler: Optional[PerformanceRecorder] = None,
+    analysis_config: Optional[AnalysisConfig] = None,
+    cache_dir: Path | None = None,
 ) -> Dict[str, Any]:
-    commits = _parse_commit_log(repo_dir, ref, profiler=profiler)
+    analysis_config = analysis_config or AnalysisConfig.resolve()
+    ref_oid = resolve_ref_oid(repo_dir, ref)
+    cache_key = {
+        "ref_oid": ref_oid,
+        "config": analysis_config.cache_payload(),
+    }
+    cached = load_analysis_cache(cache_dir if analysis_config.cache_enabled else None, "ai-repo-data", cache_key)
+    if cached is not None:
+        return {
+            "commits": list(cached.get("commits", [])),
+            "file_paths": list(cached.get("file_paths", [])),
+            "analysis_cache_hit": True,
+        }
+
+    commit_scope = build_commit_scope(repo_dir, ref, analysis_config, cache_dir=cache_dir)
+    selected_hashes = [entry.commit for entry in commit_scope.selected_commits]
+    commits = _parse_commit_log(
+        repo_dir,
+        ref,
+        profiler=profiler,
+        commit_hashes=selected_hashes if commit_scope.analyzed_commits < commit_scope.total_commits else None,
+        since=commit_scope.since if commit_scope.analyzed_commits == commit_scope.total_commits else None,
+    )
     if profiler is not None:
         with profiler.track("file_tree_read_ms"):
             tree_output = git_stdout(repo_dir, ["ls-tree", "-r", "--name-only", ref]).strip()
@@ -221,9 +260,16 @@ def collect_repository_ai_data(
         tree_output = git_stdout(repo_dir, ["ls-tree", "-r", "--name-only", ref]).strip()
         file_paths = [line.strip() for line in tree_output.splitlines() if line.strip()]
 
+    payload = {
+        "commits": commits,
+        "file_paths": file_paths,
+    }
+    store_analysis_cache(cache_dir if analysis_config.cache_enabled else None, "ai-repo-data", cache_key, payload)
+
     return {
         "commits": commits,
         "file_paths": file_paths,
+        "analysis_cache_hit": False,
     }
 
 

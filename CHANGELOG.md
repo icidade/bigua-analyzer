@@ -2,6 +2,30 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## Unreleased
+
+## v0.4.3
+
+ fast mode and scalable analysis for very large repositories.
+
+- Added FAST-mode signal quality guardrails with automatic fallback across 365, 730, and 1095 day windows when recent activity is too sparse for screening.
+- Added explicit output transparency and quality fields for screening interpretation, including `analysis_window_days`, `window_expanded`, `candidate_recent_commits`, `analyzed_commits`, `sample_size_used`, `recent_signal_strength`, `classification_status`, `classification_confidence`, `recommended_validation_mode`, `low_recent_signal`, `insufficient_recent_data`, and `classification_guardrail_applied`.
+- Added `metric_reliability_warning` and the intermediate quality status `screening_grade_review_recommended` for analytically fragile but structurally valid outputs that should be reviewed before being used as evidence.
+- Added a traffic-light interpretation layer with `traffic_light` (`green`, `yellow`, `orange`, `red`), `traffic_light_score`, and `is_research_grade` as stable derived fields for filtering, charting, and research-quality dataset selection.
+- Kept `metadata_anomaly_detected` reserved for structurally inconsistent or internally contradictory outputs instead of using it as a catch-all for low-sample oddities.
+- Kept the SDLC classification guardrail targeted at scores within `±0.05` of the decision thresholds for weak or moderate recent signal.
+- Added `insufficient_recent_data` as an explicit effective SDLC outcome when FAST fallback windows still produce no usable recent sample.
+- Reworked LLM prompt generation to adapt framing by signal quality, separate confidence and limitations more clearly, and label low-signal or review-recommended results as screening-grade only.
+- Tightened report wording for `AI_DRIVEN` classifications to avoid causal overstatement and favor language based on consistency of observed metrics rather than direct authorship claims.
+- Added regression tests covering FAST fallback behavior, confidence and quality field emission, guardrail behavior near thresholds, and prompt wording for low-signal and AI-driven cases.
+- Added `--mode full|fast` while keeping `full` as the default behavior for backward compatibility.
+- Added `--since`, `--time-window`, and `--sample-size` so large repositories can be analyzed with explicit temporal scoping and bounded commit sampling.
+- Added time-bucketed commit sampling in fast mode to preserve chronological coverage while reducing expensive history scans.
+- Added a persistent analysis cache for scoped commit listings and AI scan inputs, plus a `--no-analysis-cache` escape hatch.
+- Reduced the cost of history-derived metrics by reusing scoped commit metadata across bus factor, volatility, turnover, and contributor concentration calculations.
+- Added explicit output transparency fields including `analysis_mode`, `analysis_sampling_strategy`, `commit_scope_total_commits`, and `commit_scope_analyzed_commits`.
+- Added tests covering fast-mode CLI parsing, scoped output metadata, and analysis cache reuse.
+
 ## v0.4.2
 
 Release focus: performance observability and benchmarking support for large repositories.
