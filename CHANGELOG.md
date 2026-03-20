@@ -2,7 +2,9 @@
 
 This file tracks notable changes to bigua-analyzer.
 
-## Unreleased
+
+
+
 
 ## v0.5.0
 
@@ -22,6 +24,9 @@ This file tracks notable changes to bigua-analyzer.
 - Added CLI integration for visualization mode:
 	- `bigua-analyzer --plots --input <metrics.csv> --out <plots_dir>`
 - Added tests for CLI plots-mode parsing and visualization artifact generation.
+- Removed per-repository `traffic_light_<repo_id>.png` badge generation from `--plots` output to keep visualization artifacts focused on aggregate insights.
+- Added three comparative radar outputs to `--plots`: `radar_aggregate_by_traffic_light.png`, `radar_top8_ai_influence.png`, and `radar_median_plus_outliers.png`.
+- Standardized radar axes to shared `[0,1]` normalization across radar views while keeping explicit structural dimensions: `Distribution`, `Bus Factor`, `Contributors (log)`, `Stability`, and `AI Influence`.
 
 ## v0.4.3
 

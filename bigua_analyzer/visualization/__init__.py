@@ -1,7 +1,6 @@
-from .plots import generate_all_plots, generate_radar_chart, generate_traffic_light_badge
+from .plots import generate_all_plots, generate_radar_chart
 
 __all__ = [
     "generate_all_plots",
     "generate_radar_chart",
-    "generate_traffic_light_badge",
 ]

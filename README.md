@@ -363,8 +363,18 @@ This mode runs headless (no interactive window) and writes PNG files such as:
 - `repo_classification.png`
 - `turnover_vs_contributors.png`
 - `release_vs_ai.png`
+- `radar_aggregate_by_traffic_light.png`
+- `radar_top8_ai_influence.png`
+- `radar_median_plus_outliers.png`
 - `radar_<repo_id>.png` (one per repository)
-- `traffic_light_<repo_id>.png` (one per repository)
+
+Radar plots use a shared normalized `[0,1]` scale across all generated radar views so profiles remain directly comparable. The standardized axes are:
+
+- `Distribution`
+- `Bus Factor`
+- `Contributors (log)`
+- `Stability`
+- `AI Influence`
 
 #### HTML rendering
 

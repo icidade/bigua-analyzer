@@ -51,10 +51,11 @@ class VisualizationModuleTests(unittest.TestCase):
                 "repo_classification.png",
                 "turnover_vs_contributors.png",
                 "release_vs_ai.png",
+                "radar_aggregate_by_traffic_light.png",
+                "radar_top8_ai_influence.png",
+                "radar_median_plus_outliers.png",
                 "radar_example__repo-a.png",
                 "radar_example__repo-b.png",
-                "traffic_light_example__repo-a.png",
-                "traffic_light_example__repo-b.png",
             ]
             for filename in expected:
                 self.assertTrue((out_dir / filename).exists(), msg=filename)
