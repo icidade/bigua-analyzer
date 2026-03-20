@@ -118,6 +118,72 @@ They help normalize and interpret ecosystem signals.
 
 ---
 
+## Signal Quality Interpretation Layer (Traffic Light)
+
+This layer provides a simple, explicit quality classification for repository-level outputs.
+It is a pure interpretation layer and does not modify AI score, SDLC classification, or signal-strength computation.
+
+Primary field:
+
+- `traffic_light`: one of `green`, `yellow`, `orange`, `red`
+
+Derived fields:
+
+- `traffic_light_score`:
+  - green = 3
+  - yellow = 2
+  - orange = 1
+  - red = 0
+- `is_research_grade`: `true` when `traffic_light == green`, otherwise `false`
+
+Rule priority (first match wins):
+
+1. RED (do not trust / reprocess required)
+   - `insufficient_recent_data == true`
+   - OR `metadata_anomaly_detected == true`
+
+2. ORANGE (screening only, low reliability)
+   - `low_recent_signal == true`
+   - OR `classification_confidence` in `low`, `very_low`
+   - OR `metric_reliability_warning == true`
+
+3. YELLOW (usable with caution)
+   - `recent_signal_strength == moderate`
+   - OR `classification_confidence == moderate`
+   - OR `window_expanded == true`
+
+4. GREEN (research-grade signal)
+   - Assigned when none of the higher-priority conditions match.
+   - In practice, this corresponds to strong/high confidence paths without critical quality flags.
+
+Implementation notes:
+
+- Computed by `compute_traffic_light(row: dict) -> str`.
+- Uses only already-computed quality fields.
+- Deterministic and stable for charting and dataset filtering.
+
+Typical uses:
+
+- filter high-quality rows for research/paper plots (`traffic_light == green`)
+- separate screening-only rows (`orange`) from stronger evidence (`green`)
+- color scatter or comparison charts via `traffic_light` / `traffic_light_score`
+
+Example CSV row (selected quality columns):
+
+```csv
+url,analysis_mode,analysis_window_days,window_expanded,analyzed_commits,recent_signal_strength,classification_confidence,low_recent_signal,insufficient_recent_data,metadata_anomaly_detected,metric_reliability_warning,traffic_light,traffic_light_score,is_research_grade
+https://github.com/example/repo,fast,365,false,182,strong,high,false,false,false,false,green,3,true
+```
+
+Interpretation:
+
+- this row is research-grade for screening and can be prioritized in charts and comparative analyses
+- rows with `orange` should be treated as screening-only and validated before strong claims
+- rows with `red` should be excluded from evidence-oriented analyses until reprocessed
+
+
+---
+
 ## AI Influence Calibration Outputs
 
 The AI Influence Score now includes additional calibration and interpretability outputs intended to reduce false positives in young and legacy repositories.

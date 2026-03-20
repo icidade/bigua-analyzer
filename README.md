@@ -25,6 +25,8 @@ The name reflects this idea: observing the ecosystem and extracting insights tha
 
 The analyzer focuses exclusively on publicly available repository metadata and commit history.
 
+For the full metric catalogue and the traffic-light signal quality layer (`green/yellow/orange/red`), see [bigua_project_docs/metrics.md](bigua_project_docs/metrics.md#signal-quality-interpretation-layer-traffic-light).
+
 ### Repository activity
 
 - Total number of commits
