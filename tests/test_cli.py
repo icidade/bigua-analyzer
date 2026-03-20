@@ -48,6 +48,19 @@ class CLISdlcModeTests(unittest.TestCase):
         self.assertEqual(args.sample_size, 64)
         self.assertTrue(args.no_analysis_cache)
 
+    def test_global_plots_mode_flags(self) -> None:
+        parser = _build_parser()
+        args = parser.parse_args([
+            "--plots",
+            "--input",
+            "out/results.csv",
+            "--out",
+            "plots",
+        ])
+        self.assertTrue(args.plots)
+        self.assertEqual(args.input, "out/results.csv")
+        self.assertEqual(args.plots_out, "plots")
+
 
 if __name__ == "__main__":
     unittest.main()

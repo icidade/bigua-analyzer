@@ -87,6 +87,10 @@ bigua-analyzer uses **subcommands**:
 | `analyze` | Clone repositories and extract metrics to CSV/JSONL across human, hybrid, or AI-aware SDLC modes |
 | `analyze-report` | Generate an AI-assisted Markdown + HTML report from a metrics CSV |
 
+In addition to subcommands, bigua-analyzer also supports a direct visualization mode:
+
+- `bigua-analyzer --plots --input <metrics.csv> --out <plots_dir>`
+
 ---
 
 ### `analyze` — Extract metrics
@@ -342,6 +346,36 @@ bigua-analyzer analyze-report \
 
 This writes files such as `owner__repo_analysis_report.md` and `owner__repo_analysis_report.html` under the chosen output directory.
 
+---
+
+### `--plots` — Generate visualization assets from CSV
+
+Generate research-ready PNG charts directly from the analyzer CSV output without interactive rendering.
+
+```bash
+bigua-analyzer --plots --input out/results.csv --out plots
+```
+
+This mode runs headless (no interactive window) and writes PNG files such as:
+
+- `gini_vs_bus_factor.png`
+- `ai_influence_distribution.png`
+- `repo_classification.png`
+- `turnover_vs_contributors.png`
+- `release_vs_ai.png`
+- `radar_aggregate_by_traffic_light.png`
+- `radar_top8_ai_influence.png`
+- `radar_median_plus_outliers.png`
+- `radar_<repo_id>.png` (one per repository)
+
+Radar plots use a shared normalized `[0,1]` scale across all generated radar views so profiles remain directly comparable. The standardized axes are:
+
+- `Distribution`
+- `Bus Factor`
+- `Contributors (log)`
+- `Stability`
+- `AI Influence`
+
 #### HTML rendering
 
 HTML output is always available. By default, bigua-analyzer uses a built-in Markdown converter that covers the subset typically produced by LLMs: headings, bold, italic, inline code, fenced code blocks, lists, and links.
@@ -387,6 +421,9 @@ When SDLC-aware analysis is enabled, outputs also include additive fields such a
 - `ai_style_uniformity_score`
 - `ai_metadata_signal_score`
 - `ai_influence_rationale`
+- `traffic_light`
+- `traffic_light_score`
+- `is_research_grade`
 
 The `commit_scope_*` and `analysis_*` fields make scoped runs explicit, so downstream analysis can distinguish full-history metrics from fast approximations.
 
