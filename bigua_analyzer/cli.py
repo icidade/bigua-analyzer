@@ -395,6 +395,13 @@ def _cmd_analyze_report(args) -> None:
         print(f"Generated matching HTML reports in: {args.out_dir}")
 
 
+def _cmd_plots(args) -> None:
+    from .visualization import generate_all_plots
+
+    generate_all_plots(csv_path=args.input, output_dir=args.plots_out)
+    print(f"Visualization assets written to: {args.plots_out}")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -404,8 +411,25 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="bigua-analyzer",
         description="Analyze public GitHub repositories and extract socio-technical development metrics.",
     )
+    p.add_argument(
+        "--plots",
+        action="store_true",
+        help="Generate visualization assets directly from an analyzer CSV.",
+    )
+    p.add_argument(
+        "--input",
+        type=str,
+        default=None,
+        help="Input CSV path used with --plots.",
+    )
+    p.add_argument(
+        "--out",
+        dest="plots_out",
+        type=str,
+        default="plots",
+        help="Output directory used with --plots (default: plots).",
+    )
     subparsers = p.add_subparsers(dest="command", metavar="<command>")
-    subparsers.required = True
     _add_analyze_parser(subparsers)
     _add_analyze_report_parser(subparsers)
     return p
@@ -414,6 +438,14 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
+    if args.plots:
+        if not args.input:
+            parser.error("--plots requires --input <metrics.csv>")
+        _cmd_plots(args)
+        return
+    if not hasattr(args, "func"):
+        parser.print_help()
+        raise SystemExit(2)
     args.func(args)
 
 

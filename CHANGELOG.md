@@ -4,6 +4,25 @@ This file tracks notable changes to bigua-analyzer.
 
 ## Unreleased
 
+## v0.5.0
+
+ visualization module for research-grade plot generation.
+
+- Added `bigua_analyzer.visualization` with a new plotting module at `bigua_analyzer/visualization/plots.py`.
+- Added `generate_all_plots(csv_path, output_dir)` to generate aggregate PNG charts from analyzer CSV outputs.
+- Added single-figure charts for:
+	- Gini vs Bus Factor (`gini_vs_bus_factor.png`)
+	- AI Influence Distribution (`ai_influence_distribution.png`)
+	- Repo Classification / Traffic Light (`repo_classification.png`)
+	- Turnover vs Contributors (`turnover_vs_contributors.png`)
+	- Release Cadence vs AI Influence (`release_vs_ai.png`)
+- Added per-repository radar chart generation via `generate_radar_chart(row, output_dir)` with normalization to `[0,1]` and requested inversion rules.
+- Added per-repository traffic-light badge generation via `generate_traffic_light_badge(row, output_dir)` using structural signal labels.
+- Added headless plotting behavior for CI/non-interactive environments using Matplotlib `Agg` backend.
+- Added CLI integration for visualization mode:
+	- `bigua-analyzer --plots --input <metrics.csv> --out <plots_dir>`
+- Added tests for CLI plots-mode parsing and visualization artifact generation.
+
 ## v0.4.3
 
  fast mode and scalable analysis for very large repositories.
