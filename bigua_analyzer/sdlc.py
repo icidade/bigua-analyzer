@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal, cast
 
 SDLCMode = Literal["auto", "human", "hybrid", "ai"]
-EffectiveSDLCMode = Literal["human", "hybrid", "ai"]
+EffectiveSDLCMode = Literal["human", "hybrid", "ai", "insufficient_recent_data"]
 
 
 def clamp01(value: float) -> float:

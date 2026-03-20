@@ -4,6 +4,10 @@ Repository: {repo_name}
 URL: {repo_url}
 Analysis date: {analysis_date}
 
+Dominant framing to use:
+
+{dominant_framing}
+
 SDLC context:
 
 {sdlc_context_block}
@@ -15,6 +19,15 @@ Metrics:
 Derived signals:
 
 {signals_block}
+
+Confidence context:
+
+{confidence_context_block}
+Metric reliability warning: {metric_reliability_warning}
+
+Validation hints:
+
+{validation_hints_block}
 
 Interpretation hints:
 
@@ -42,74 +55,38 @@ Additional interpretation rules:
 - Do not assume that high developer_turnover automatically indicates instability.
 - Consider that OSS projects often have many occasional contributors.
 - Explicitly mention uncertainty when multiple interpretations exist.
+- If recent_signal_strength is weak or insufficient, state clearly that the output is screening-grade only.
+- Lack of recent signal is not evidence of a human-only profile.
+- If metadata_anomaly_detected is true, say the result should be interpreted cautiously and mention metadata review.
+- If classification_guardrail_applied is true, say the score is near a class boundary and should be validated with a fuller rerun.
+- If metric_reliability_warning is true, explicitly state that the output is screening-grade only and that the analyzed sample was too small or that window expansion did not yield sufficient signal; do not present the classification as actionable without a full rerun.
+- If data_quality_status is screening_grade_review_recommended, label results as screening-grade and flag that the output requires review before use as evidence.
+- If classification_status is AI_DRIVEN: do not write that recent development is "shaped by" or "driven by" AI. Use phrasing such as "recent metrics are more consistent with AI-driven or strongly AI-assisted contribution patterns" or "signals suggest a more AI-intensive workflow, but do not establish direct authorship causality."
+- Apply the same caution for AI_DRIVEN as for any other borderline classification: the score reflects distributional patterns, not ground-truth authorship.
 
 Generate the report using this exact structure:
 
 # Repository Analysis Report
 
-## Executive Summary
+## Analytical Summary
 
-## Repository Profile
+## What stands out most
 
-## Metric Signals
+## Interpretation of signals
 
-This section is required. Always include it.
+## Confidence and limitations
 
-Use this exact subsection format:
+## Next validation step
 
-High:
-- metric_name
+Writing requirements:
 
-Moderate:
-- metric_name
-
-Low:
-- metric_name
-
-Rules:
-- Use raw metric keys (for example: gini_coefficient, developer_turnover, commit_volatility).
-- Put each metric in only one group.
-- If a group has no strong candidates, keep the label and use a short placeholder line: - (none).
-- The model should determine grouping based on metric values.
-
-## Key Observations
-
-## Strengths
-
-## Risks and Concerns
-
-## Contributor Dynamics
-
-## Change and Maintenance Patterns
-
-## Evidence Map
-
-Purpose:
-Link analytical conclusions with the metrics that support them.
-
-The section must map insights to the metrics used to infer them.
-
-This section is required. Always include it.
-
-Example format:
-
-## Evidence Map
-
-Contribution concentration
-evidence:
-- gini_coefficient: 0.83
-- top contributor share: 33%
-
-Contributor instability
-evidence:
-- developer_turnover: 0.95
-- median inactivity: 3019 days
-
-Rules for the model:
-- Every major interpretation must cite the metrics that support it.
-- Do not introduce evidence not present in the metrics input.
-- Keep each evidence item as a short key-value bullet (metric_name: value).
-
-## Final Assessment
-
-## Suggested Next Steps
+- Lead with the most distinctive pattern in the data, not the score by default.
+- Use the dominant framing specified above.
+- Make the report feel like concise analyst notes, not consultant boilerplate.
+- Use cautious research language throughout.
+- Separate interpretation from confidence explicitly.
+- Mention recent signal strength, fast mode usage, window expansion, and any anomaly or low-signal flags in the Confidence and limitations section.
+- If analyzed_commits is 0 or signal strength is weak, do not present the classification as a strong conclusion.
+- If signal is strong and no anomaly flags are present, provide a more direct integrated interpretation of concentration, bus factor, gini, turnover, and AI score.
+- The Next validation step section must be brief, case-specific, and usually 1-3 bullet points.
+- Do not give generic program-management or security advice unless directly supported by the provided metrics.
