@@ -16,6 +16,7 @@ dist/
 
 # Cache (VERY IMPORTANT)
 .cache/
+test_cache/
 
 # Output data
 out/

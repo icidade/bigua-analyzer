@@ -2,6 +2,13 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.5.2
+
+security updates
+
+- Added CODEQL version update (dependabot bump)
+- Changed Readme security hardening topic position
+
 ## v0.5.1
 
 Image improvements
