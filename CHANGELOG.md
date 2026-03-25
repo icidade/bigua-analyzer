@@ -2,9 +2,14 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.5.1
 
+Image improvements
 
-
+- Added codeql.yml
+- Added dependabot.yml
+- Added pre release security_audit.py
+- Added github sponsors on funding.yml. Please support!
 
 ## v0.5.0
 

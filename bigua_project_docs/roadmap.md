@@ -14,6 +14,8 @@
 
 0.5.0   Visualization / report improvements 
 
+0.5.1   Image improvements - go public
+
 0.6.0   Ingestion from manifest parsers / lockfile parsers
 
 0.7.0   More datasets / research features 

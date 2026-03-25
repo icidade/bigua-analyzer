@@ -4,12 +4,12 @@ title: "bigua-analyzer"
 type: software
 authors:
   - family-names: "icidade"
-version: "0.5.0"
+version: "0.5.1"
 date-released: "2026-03-16"
 license: "MIT"
 repository-code: "https://github.com/icidade/bigua-analyzer"
 url: "https://github.com/icidade/bigua-analyzer"
-abstract: "A research tool that analyzes public GitHub repositories to extract socio-technical development metrics."
+abstract: "A research tool that analyzes public GitHub repositories to extract socio-technical development metrics and AI influence."
 keywords:
   - software engineering
   - open source
