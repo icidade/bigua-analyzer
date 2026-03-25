@@ -11,6 +11,26 @@ A research tool that analyzes public GitHub repositories to extract engineering 
 [![Python](https://img.shields.io/badge/python-3.10+-blue)]()
 [![Support on Patreon](https://img.shields.io/badge/Support-Patreon-ff424d?logo=patreon)](https://patreon.com/bigua_analyzer)
 
+## Security hardening
+
+This repository includes:
+
+- CodeQL static analysis workflow at `.github/workflows/codeql.yml`
+- Dependabot updates at `.github/dependabot.yml`
+- A local pre-release audit script at `scripts/security_audit.py`
+
+Run the local audit before publishing:
+
+```bash
+python scripts/security_audit.py
+```
+
+Optional flags:
+
+- Scan fewer commits in history: `python scripts/security_audit.py --history-commits 100`
+- Skip commit history scan: `python scripts/security_audit.py --no-history`
+- Include broad keyword scan (more false positives): `python scripts/security_audit.py --include-generic-keyword-scan`
+
 ## Why the name?
 
 “Biguá” is the Portuguese name for a **cormorant**, a diving bird commonly found along Brazilian coasts and rivers.
@@ -94,6 +114,10 @@ In addition to subcommands, bigua-analyzer also supports a direct visualization 
 ---
 
 ### `analyze` — Extract metrics
+
+The core analysis pipeline is illustrated below:
+
+![Core analysis pipeline](docs/Core%20Analysis%20Pipeline%20for-2026-03-23-200209.svg)
 
 #### Analyze a single repository
 
