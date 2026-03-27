@@ -4,8 +4,8 @@ title: "bigua-analyzer"
 type: software
 authors:
   - family-names: "icidade"
-version: "0.5.2"
-date-released: "2026-03-16"
+version: "0.5.3"
+date-released: "2026-03-26"
 license: "MIT"
 repository-code: "https://github.com/icidade/bigua-analyzer"
 url: "https://github.com/icidade/bigua-analyzer"

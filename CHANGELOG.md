@@ -2,6 +2,15 @@
 
 This file tracks notable changes to bigua-analyzer.
 
+## v0.5.3
+
+Gemini compatibility and release metadata updates.
+
+- Added Gemini fallback handling in the LLM client: if a request with `systemInstruction` fails with HTTP 400, the client retries once without system prompt.
+- Added explicit warning log entry when Gemini fallback is triggered.
+- Added CLI `--version` output and aligned package/citation version metadata to `0.5.3`.
+- Added documentation note clarifying that non-OpenAI providers may show slight report output differences when fallback runs without system prompt.
+
 ## v0.5.2
 
 security updates
