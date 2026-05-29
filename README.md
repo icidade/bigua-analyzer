@@ -290,6 +290,8 @@ The LLM call uses a **system/user split** for better output consistency:
 - **System role:** persona, rules, and output constraints (static)
 - **User role:** repository metadata, metrics, derived signals, and format instructions (dynamic)
 
+For some non-OpenAI providers (for example, newer Gemini variants), the system prompt channel may be rejected. In this case, bigua-analyzer retries without system prompt to keep report generation running; output style and framing may vary slightly compared to the default OpenAI path.
+
 Defaults are tuned for factual, analytical output: `temperature=0.2`, `top_p=0.9`.
 
 Provider-specific environment variables are respected automatically:

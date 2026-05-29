@@ -6,6 +6,12 @@ from bigua_analyzer.cli import _build_parser
 
 
 class CLISdlcModeTests(unittest.TestCase):
+    def test_cli_version_flag(self) -> None:
+        parser = _build_parser()
+        with self.assertRaises(SystemExit) as ctx:
+            parser.parse_args(["--version"])
+        self.assertEqual(ctx.exception.code, 0)
+
     def test_analyze_defaults_to_auto_mode(self) -> None:
         parser = _build_parser()
         args = parser.parse_args(["analyze", "https://github.com/example/repo"])

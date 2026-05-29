@@ -1,3 +1,6 @@
+[tool.setuptools]
+packages = ["bigua_analyzer"]
+
 [project]
 name = "bigua-analyzer"
 version = "0.5.0"

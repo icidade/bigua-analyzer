@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Optional
 from urllib.request import Request, urlopen
@@ -16,6 +17,9 @@ _DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 _DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 _DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 _DEFAULT_OLLAMA_MODEL = "llama3.1"
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _http_json(
@@ -43,6 +47,10 @@ def _http_json(
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Invalid JSON response from LLM API: {raw[:500]}") from exc
+
+
+def _is_http_400_error(exc: RuntimeError) -> bool:
+    return "HTTP 400" in str(exc)
 
 
 def _get_required_api_key(
@@ -178,7 +186,26 @@ def _call_gemini(
         payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
 
     headers = {"Content-Type": "application/json"}
-    data = _http_json(url=url, payload=payload, headers=headers)
+    try:
+        data = _http_json(url=url, payload=payload, headers=headers)
+    except RuntimeError as exc:
+        if not system_prompt or not _is_http_400_error(exc):
+            raise
+
+        _LOGGER.warning(
+            "Gemini request returned HTTP 400 with systemInstruction; retrying without system prompt. model=%s",
+            model,
+        )
+
+        retry_payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": temperature,
+                "topP": top_p,
+                "maxOutputTokens": max_tokens,
+            },
+        }
+        data = _http_json(url=url, payload=retry_payload, headers=headers)
 
     try:
         parts = data["candidates"][0]["content"]["parts"]

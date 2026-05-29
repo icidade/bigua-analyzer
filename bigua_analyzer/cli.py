@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import List
 
 from .analysis_scope import AnalysisConfig
+from . import __version__
 from .core import analyze_repo
 from .io_utils import read_dataset, write_csv, write_jsonl
 from .models import RepoResult, RepoSpec
@@ -410,6 +411,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bigua-analyzer",
         description="Analyze public GitHub repositories and extract socio-technical development metrics.",
+    )
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"bigua-analyzer {__version__}",
     )
     p.add_argument(
         "--plots",
