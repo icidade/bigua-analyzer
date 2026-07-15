@@ -9,7 +9,7 @@ A research tool that analyzes public GitHub repositories to extract engineering 
 [![Release](https://img.shields.io/github/v/release/icidade/bigua-analyzer)](https://github.com/icidade/bigua-analyzer/releases)
 [![License](https://img.shields.io/github/license/icidade/bigua-analyzer)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue)]()
-[![Support on Patreon](https://img.shields.io/badge/Support-Patreon-ff424d?logo=patreon)](https://patreon.com/bigua_analyzer)
+[![Support on Patreon](https://img.shields.io/badge/Support-Patreon-ff424d?logo=patreon)](https://patreon.com/miniciso)
 
 ## Why the name?
 
